@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<notification_service xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Minimal placeholder to avoid AAPT parse errors. -->
+</notification_service>
