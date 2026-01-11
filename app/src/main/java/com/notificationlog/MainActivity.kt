@@ -1,6 +1,7 @@
 package com.notificationlog
 
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.widget.Button
@@ -17,8 +18,13 @@ class MainActivity : AppCompatActivity() {
 
         // Set a listener that executes code when the button is clicked.
         enableButton.setOnClickListener {
-            // This special Intent action tells Android to open the notification listener settings screen.
-            startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+            // Open the notification listener settings if the API level supports it,
+            // otherwise fall back to general settings.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1) {
+                startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+            } else {
+                startActivity(Intent(Settings.ACTION_SETTINGS))
+            }
         }
     }
 }

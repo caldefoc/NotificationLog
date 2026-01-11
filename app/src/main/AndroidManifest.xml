@@ -6,7 +6,8 @@
 		android:allowBackup="true"
 		android:label="@string/app_name"
 		android:icon="@android:drawable/ic_dialog_info"
-		android:roundIcon="@android:drawable/ic_dialog_info">
+		android:roundIcon="@android:drawable/ic_dialog_info"
+		android:theme="@style/Theme.NotificationLog">
 
 		<activity android:name=".MainActivity" android:exported="true">
 			<intent-filter>

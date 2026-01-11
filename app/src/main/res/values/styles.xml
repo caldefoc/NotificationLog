@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App theme that extends an AppCompat theme for AppCompatActivity -->
+    <style name="Theme.NotificationLog" parent="Theme.AppCompat.Light.DarkActionBar">
+        <!-- Customize your theme here if needed -->
+        <item name="colorPrimary">#008577</item>
+        <item name="colorPrimaryDark">#00574B</item>
+        <item name="colorAccent">#D81B60</item>
+    </style>
+</resources>
