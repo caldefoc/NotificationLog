@@ -1,0 +1,96 @@
+// JDK 17 Validation Script
+// This script validates that the project is using JDK 17 as required
+// Run with: ./gradlew validateJdk
+// OR it runs automatically during build if enabled
+
+import org.gradle.api.GradleException
+
+// Define the required Java version
+def requiredJavaVersion = JavaVersion.VERSION_17
+def requiredMajorVersion = 17
+
+// Task to validate JDK version
+tasks.register('validateJdk') {
+    group = 'verification'
+    description = 'Validates that JDK 17 is being used'
+    
+    doLast {
+        def currentJavaVersion = JavaVersion.current()
+        println "🔍 Checking JDK version..."
+        println "   Required: JDK ${requiredJavaVersion} (Java 17)"
+        println "   Current:  JDK ${currentJavaVersion} (Java ${currentJavaVersion.majorVersion})"
+        
+        if (currentJavaVersion.majorVersion != requiredMajorVersion) {
+            def errorMessage = """
+            ❌ ERROR: Incorrect JDK version detected!
+            
+            This project requires JDK ${requiredJavaVersion} (Java 17).
+            Current JDK version: ${currentJavaVersion} (Java ${currentJavaVersion.majorVersion})
+            
+            Error "Unsupported class file major version ${currentJavaVersion.majorVersion + 44}" 
+            will occur if you continue with JDK ${currentJavaVersion.majorVersion}.
+            
+            TO FIX THIS:
+            ============
+            1. Install JDK 17 if not already installed
+               Download from: https://adoptium.net/temurin/releases/?version=17
+            
+            2. Configure your environment:
+               Option A: Set JAVA_HOME environment variable
+                 Windows: set JAVA_HOME=C:\\Program Files\\Java\\jdk-17
+                 Mac/Linux: export JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk-17.jdk/Contents/Home
+            
+               Option B: Update gradle.properties
+                 Set: org.gradle.java.home=/path/to/your/jdk-17
+                 (Current gradle.java.home: ${project.findProperty('org.gradle.java.home') ?: 'Not set'})
+            
+               Option C: In Android Studio:
+                 File > Settings > Build, Execution, Deployment > Build Tools > Gradle
+                 Under "Gradle JVM", select a JDK 17 installation
+            
+            3. Verify the fix:
+               Run: ./gradlew validateJdk
+               Should show: "✅ SUCCESS: JDK 17 detected correctly"
+            
+            4. Clean and rebuild:
+               ./gradlew clean build
+            """.stripIndent()
+            
+            throw new GradleException(errorMessage)
+        } else {
+            println "✅ SUCCESS: JDK 17 detected correctly"
+            println "   You can now build the project without JDK version errors."
+        }
+    }
+}
+
+// Optional: Automatically run validation during build
+// Uncomment the following lines to enable automatic validation
+/*
+afterEvaluate {
+    // Run validation before any Java/Kotlin compilation tasks
+    tasks.withType(AbstractCompile).configureEach { compileTask ->
+        compileTask.dependsOn validateJdk
+    }
+    
+    // Or run validation at the beginning of the build
+    tasks.named('preBuild').configure {
+        dependsOn validateJdk
+    }
+}
+*/
+
+// Helper task to show JDK information
+tasks.register('jdkInfo') {
+    group = 'help'
+    description = 'Shows detailed JDK information'
+    
+    doLast {
+        println "📋 JDK Information:"
+        println "   Java Home: ${System.getProperty('java.home')}"
+        println "   Java Version: ${JavaVersion.current()}"
+        println "   JAVA_HOME env: ${System.getenv('JAVA_HOME') ?: 'Not set'}"
+        println "   JDK17_HOME env: ${System.getenv('JDK17_HOME') ?: 'Not set'}"
+        println "   gradle.java.home property: ${project.findProperty('org.gradle.java.home') ?: 'Not set'}"
+    }
+}

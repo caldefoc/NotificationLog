@@ -1,4 +1,3 @@
-
 pluginManagement {
     repositories {
         google()
@@ -15,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
+rootProject.name = "NotificationListener"
 include ':app'
-rootProject.name = 'NotificationLog'

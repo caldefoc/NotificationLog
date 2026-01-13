@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    
+    <item
+        android:id="@+id/menu_sort_date"
+        android:title="Sort by Date"
+        app:showAsAction="never" />
+        
+    <item
+        android:id="@+id/menu_sort_app"
+        android:title="Sort by App"
+        app:showAsAction="never" />
+        
+    <item
+        android:id="@+id/menu_export_screenshot"
+        android:title="Export as Screenshot"
+        app:showAsAction="never" />
+        
+    <item
+        android:id="@+id/menu_export_json"
+        android:title="Export as JSON"
+        app:showAsAction="never" />
+        
+    <item
+        android:id="@+id/menu_clear_all"
+        android:title="Clear All"
+        app:showAsAction="never" />
+        
+    <item
+        android:id="@+id/menu_about"
+        android:title="About"
+        app:showAsAction="never" />
+        
+    <item
+        android:id="@+id/menu_exit"
+        android:title="Exit"
+        app:showAsAction="never" />
+        
+</menu>

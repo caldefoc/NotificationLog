@@ -1,23 +1,53 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:gravity="center"
-    android:orientation="vertical"
-    android:padding="16dp">
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools">
 
-    <TextView
-        android:id="@+id/textHello"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="24dp"
-        android:text="Welcome to NotificationLog"
-        android:textSize="18sp" />
+    <!-- Assuming a LinearLayout or similar as the root -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:padding="16dp"
+        tools:context=".MainActivity">
 
-    <Button
-        android:id="@+id/enablePermissionButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Enable Notification Access" />
+        <!-- Other views like TextViews, etc. -->
+        <TextView
+            android:id="@+id/tvServiceStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            tools:text="Service Status: Running"/>
 
-</LinearLayout>
+        <TextView
+            android:id="@+id/tvNotificationCount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            tools:text="Notifications: 0"/>
+
+        <Button
+            android:id="@+id/btnEnableService"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/enable_notification_access"/>
+
+        <!-- ✅ ADD THIS BUTTON -->
+        <Button
+            android:id="@+id/btnRequestPermission"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/grant_permission"/>
+
+        <Button
+            android:id="@+id/btnClear"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/clear_notifications"/>
+
+    </LinearLayout>
+</layout>
+

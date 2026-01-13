@@ -1,5 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-	<string name="app_name">NotificationLog</string>
-	<string name="empty">""</string>
+    <string name="app_name">Notification Log</string>
+    <string name="notification_logger_service">Notification Logger Service</string>
+    <string name="service_running">Service is running</string>
+    <string name="service_stopped">Service is stopped</string>
+    <string name="notification_count">Notification Count: %d</string>
+    <string name="enable_notification_access">Enable Notification Access</string>
+    <string name="notification_access_required">Notification access is required for this app to function.</string>
+    <string name="open_settings">Open Settings</string>
+    <string name="cancel">Cancel</string>
+    <string name="permission_required">Permission Required</string>
+    <string name="post_notification_permission">Post notification permission is required.</string>
+    <string name="grant_permission">Grant Permission</string>
+    <string name="clear_notifications">Clear Notifications</string>
 </resources>
-

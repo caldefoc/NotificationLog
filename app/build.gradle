@@ -1,30 +1,79 @@
-apply plugin: 'com.android.application'
-apply plugin: 'kotlin-android'
+// ✅ CORRECT ORDER: plugins block FIRST
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+    // ✅ APPLY THE KSP PLUGIN
+    id 'com.google.devtools.ksp'
+    // ✅ APPLY PARCELIZE PLUGIN
+    id 'kotlin-parcelize'
+    // ❌ REMOVE 'kotlin-kapt' if you are fully migrating to KSP
+    // id 'kotlin-kapt'
+}
 
+// ✅ Then android block
 android {
-	compileSdk 33
+    namespace 'com.notificationlog'  // your actual package name
+    compileSdk 34  // or your target SDK
 
-	namespace "com.notificationlog"
+    defaultConfig {
+        applicationId "com.notificationlog"
+        minSdk 24  // adjust as needed
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
 
-	defaultConfig {
-		applicationId "com.notificationlog"
-		minSdk 21
-		targetSdk 33
-		versionCode 1
-		versionName "1.0"
-	}
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
 
-	compileOptions {
-		sourceCompatibility JavaVersion.VERSION_17
-		targetCompatibility JavaVersion.VERSION_17
-	}
+    // other android configs...
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
+    }
 
-	kotlinOptions {
-		jvmTarget = "17"
-	}
+    kotlinOptions {
+        jvmTarget = '21'
+    }
+
+    // ✅ Enable DataBinding
+    buildFeatures {
+        dataBinding true
+    }
+
+    // ✅ This block should now be recognized correctly
+    ksp {
+        arg("room.schemaLocation", "$projectDir/schemas")
+    }
 }
 
+// ✅ Then dependencies block
 dependencies {
-	implementation 'androidx.appcompat:appcompat:1.6.1'
-	// Other dependencies
+    // Core Android
+    implementation 'androidx.core:core-ktx:1.12.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.11.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+
+    // ✅ Room Database (for storing notifications)
+    def roomVersion = "2.6.1"
+
+    implementation "androidx.room:room-runtime:$roomVersion"
+    implementation "androidx.room:room-ktx:$roomVersion"
+    ksp "androidx.room:room-compiler:$roomVersion"
+
+    // ✅ ViewModel + Lifecycle (for viewModelScope)
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0'
+    implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.7.0'
+    implementation 'androidx.activity:activity-ktx:1.8.2'
+    implementation 'androidx.fragment:fragment-ktx:1.6.2'
+
+    // ✅ Preferences (for Settings)
+    implementation 'androidx.preference:preference-ktx:1.2.1'
 }
+
+// ... rest of the file
