@@ -44,6 +44,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var adapter: NotificationAdapter
     private lateinit var prefs: SharedPreferences
     private var currentSort: SortType = SortType.DATE
+    private var captureEnabled: Boolean = true
     
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -60,6 +61,7 @@ class MainActivity : AppCompatActivity() {
         
         // Load preferences
         prefs = getSharedPreferences("com.notificationlog.prefs", Context.MODE_PRIVATE)
+        captureEnabled = prefs.getBoolean("capture_enabled", true)
         val isDarkMode = prefs.getBoolean("dark_mode", false)
         AppCompatDelegate.setDefaultNightMode(
             if (isDarkMode) AppCompatDelegate.MODE_NIGHT_YES else AppCompatDelegate.MODE_NIGHT_NO
@@ -86,6 +88,7 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         viewModel.checkNotificationServiceStatus()
         viewModel.loadNotifications(currentSort)
+        updateServiceStatusText()
         updateButtonStates()
         checkRunningNotification()
     }
@@ -104,7 +107,7 @@ class MainActivity : AppCompatActivity() {
         binding.menuSort.setOnClickListener { showSortMenu(it) }
         binding.menuSave.setOnClickListener { showSaveMenu(it) }
         binding.menuAbout.setOnClickListener { showAboutDialog() }
-        binding.menuExit.setOnClickListener { finishAffinity() }
+        binding.menuExit.setOnClickListener { showExitConfirmation() }
     }
 
     private fun showFileMenu(view: View) {
@@ -112,7 +115,7 @@ class MainActivity : AppCompatActivity() {
         popup.menu.add(0, R.id.menu_file_exit, 0, "Exit")
         popup.setOnMenuItemClickListener { item ->
             if (item.itemId == R.id.menu_file_exit) {
-                finishAffinity()
+                showExitConfirmation()
                 true
             } else false
         }
@@ -162,24 +165,39 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupBottomButtons() {
-        // Tooltips
         TooltipCompat.setTooltipText(binding.btnEnableService, "Enable Notification Access")
         TooltipCompat.setTooltipText(binding.btnRequestPermission, "Grant Permission")
         TooltipCompat.setTooltipText(binding.btnClear, "Clear All Notifications")
+        TooltipCompat.setTooltipText(binding.btnCapture, "Start Capture")
 
         binding.btnEnableService.setOnClickListener {
             openNotificationAccessSettings()
         }
         
         binding.btnRequestPermission.setOnClickListener {
-            requestNotificationPermission()
+            showNotificationPermissionDialog()
         }
         
         binding.btnClear.setOnClickListener {
             showClearAllConfirmation()
         }
+
+        binding.btnCapture.setOnClickListener {
+            toggleCapture()
+        }
+
+        updateCaptureButton()
     }
     
+    private fun updateServiceStatusText() {
+        val isRunning = isNotificationServiceEnabled()
+        binding.tvServiceStatus.text = if (isRunning) {
+            if (captureEnabled) "Capture Running" else "Capture Stopped"
+        } else {
+            getString(R.string.service_stopped)
+        }
+    }
+
     private fun updateButtonStates() {
         val isServiceRunning = isNotificationServiceEnabled()
         val hasPermission = hasNotificationPermission()
@@ -197,11 +215,9 @@ class MainActivity : AppCompatActivity() {
         // Permission Button
         if (hasPermission) {
             binding.btnRequestPermission.setColorFilter(ContextCompat.getColor(this, android.R.color.holo_green_dark))
-            binding.btnRequestPermission.isEnabled = false
             TooltipCompat.setTooltipText(binding.btnRequestPermission, "Permission Granted")
         } else {
             binding.btnRequestPermission.setColorFilter(ContextCompat.getColor(this, android.R.color.holo_red_dark))
-            binding.btnRequestPermission.isEnabled = true
             TooltipCompat.setTooltipText(binding.btnRequestPermission, "Grant Permission")
         }
 
@@ -213,6 +229,35 @@ class MainActivity : AppCompatActivity() {
             binding.btnClear.isEnabled = false
             binding.btnClear.setColorFilter(ContextCompat.getColor(this, android.R.color.darker_gray))
         }
+
+        updateCaptureButton()
+    }
+
+    private fun updateCaptureButton() {
+        if (captureEnabled) {
+            binding.btnCapture.setImageResource(android.R.drawable.ic_media_pause)
+            binding.btnCapture.setColorFilter(ContextCompat.getColor(this, android.R.color.holo_green_dark))
+            binding.tvCaptureLabel.text = "Stop"
+            TooltipCompat.setTooltipText(binding.btnCapture, "Stop Capture")
+        } else {
+            binding.btnCapture.setImageResource(android.R.drawable.ic_media_play)
+            binding.btnCapture.setColorFilter(ContextCompat.getColor(this, android.R.color.holo_red_dark))
+            binding.tvCaptureLabel.text = "Start"
+            TooltipCompat.setTooltipText(binding.btnCapture, "Start Capture")
+        }
+    }
+
+    private fun toggleCapture() {
+        captureEnabled = !captureEnabled
+        prefs.edit().putBoolean("capture_enabled", captureEnabled).apply()
+        updateCaptureButton()
+        updateServiceStatusText()
+        checkRunningNotification()
+        Toast.makeText(
+            this,
+            if (captureEnabled) "Capture started" else "Capture stopped",
+            Toast.LENGTH_SHORT
+        ).show()
     }
     
     private fun checkPermissions() {
@@ -228,13 +273,12 @@ class MainActivity : AppCompatActivity() {
     
     private fun observeViewModel() {
         viewModel.serviceStatus.observe(this) { isRunning ->
-            binding.tvServiceStatus.text = if (isRunning) {
-                getString(R.string.service_running)
-            } else {
-                getString(R.string.service_stopped)
-            }
+            updateServiceStatusText()
             updateButtonStates()
             checkRunningNotification()
+            if (!isRunning) {
+                showNotificationAccessDialog()
+            }
         }
         
         viewModel.notificationCount.observe(this) { count ->
@@ -287,6 +331,25 @@ class MainActivity : AppCompatActivity() {
             }
             .setNegativeButton(getString(R.string.cancel), null)
             .show()
+    }
+
+    private fun showNotificationPermissionDialog() {
+        if (hasNotificationPermission()) {
+            AlertDialog.Builder(this)
+                .setTitle("Notification Permission")
+                .setMessage("Notification permission is already granted.")
+                .setPositiveButton(android.R.string.ok, null)
+                .show()
+        } else {
+            AlertDialog.Builder(this)
+                .setTitle("Grant Notification Permission")
+                .setMessage("This app needs notification permission to show its own notifications.")
+                .setPositiveButton("Proceed") { _, _ ->
+                    requestNotificationPermission()
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
+        }
     }
     
     private fun showPermissionDeniedDialog() {
@@ -364,6 +427,12 @@ class MainActivity : AppCompatActivity() {
                 AppCompatDelegate.setDefaultNightMode(
                     if (newMode) AppCompatDelegate.MODE_NIGHT_YES else AppCompatDelegate.MODE_NIGHT_NO
                 )
+                Toast.makeText(
+                    this,
+                    if (newMode) "Dark mode enabled" else "Light mode enabled",
+                    Toast.LENGTH_SHORT
+                ).show()
+                recreate()
                 true
             }
             R.id.menu_toggle_running_notif -> {
@@ -384,13 +453,33 @@ class MainActivity : AppCompatActivity() {
                 viewModel.loadNotifications(currentSort)
                 true
             }
+            R.id.menu_refresh -> {
+                viewModel.loadNotifications(currentSort)
+                true
+            }
             R.id.menu_save_screenshot -> { saveScreenshot(); true }
             R.id.menu_save_text -> { saveTextLog(); true }
             R.id.menu_about -> { showAboutDialog(); true }
-            R.id.menu_file_exit -> { finishAffinity(); true }
-            R.id.menu_exit -> { finishAffinity(); true }
+            R.id.menu_file_exit -> {
+                showExitConfirmation()
+                true
+            }
             else -> super.onOptionsItemSelected(item)
         }
+    }
+
+    private fun showExitConfirmation() {
+        AlertDialog.Builder(this)
+            .setTitle("Exit")
+            .setMessage("Stop notification logging and exit?")
+            .setPositiveButton("Exit") { _, _ ->
+                captureEnabled = false
+                prefs.edit().putBoolean("capture_enabled", false).apply()
+                checkRunningNotification()
+                finishAffinity()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun saveScreenshot() {
@@ -514,12 +603,13 @@ class MainActivity : AppCompatActivity() {
     private fun checkRunningNotification() {
         val show = prefs.getBoolean("show_running_notif", false)
         val isRunning = isNotificationServiceEnabled()
+        val capture = prefs.getBoolean("capture_enabled", true)
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         
-        if (show && isRunning) {
+        if (show && isRunning && capture) {
             val notification = NotificationCompat.Builder(this, "service_channel")
                 .setSmallIcon(android.R.drawable.ic_menu_view)
-                .setContentTitle("Notification Log is running...")
+                .setContentTitle("Notification Log capture is running...")
                 .setContentText("Capturing notifications in background")
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .setOngoing(true)

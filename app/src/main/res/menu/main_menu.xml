@@ -2,16 +2,16 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
     <item
-        android:id="@+id/menu_file_exit"
-        android:title="Exit"
-        app:showAsAction="never" />
-    <item
         android:id="@+id/menu_sort_date"
         android:title="Sort by Date"
         app:showAsAction="never" />
     <item
         android:id="@+id/menu_sort_app"
         android:title="Sort by App"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/menu_refresh"
+        android:title="Refresh"
         app:showAsAction="never" />
     <item
         android:id="@+id/menu_save_screenshot"
@@ -35,5 +35,10 @@
         android:id="@+id/menu_toggle_running_notif"
         android:title="Show Running Notification"
         android:checkable="true"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/menu_file_exit"
+        android:title="Exit"
         app:showAsAction="never" />
 </menu>

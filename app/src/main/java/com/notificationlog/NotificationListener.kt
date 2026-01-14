@@ -1,5 +1,6 @@
 package com.notificationlog
 
+import android.content.Context
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
@@ -7,7 +8,6 @@ import com.notificationlog.model.NotificationItem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import java.util.Date
 
 class NotificationListener : NotificationListenerService() {
 
@@ -28,21 +28,27 @@ class NotificationListener : NotificationListenerService() {
             packageName
         }
 
-        val notification = NotificationItem(
-            packageName = packageName,
-            appName = appName,
-            title = title,
-            content = content,
-            timestamp = timestamp,
-            key = sbn.key // This is the notification key for cancellation
-        )
+        val prefs = getSharedPreferences("com.notificationlog.prefs", Context.MODE_PRIVATE)
+        val captureEnabled = prefs.getBoolean("capture_enabled", true)
 
-        // Save to database
-        CoroutineScope(Dispatchers.IO).launch {
-            NotificationApp.repository.insert(notification)
+        if (captureEnabled) {
+            val notification = NotificationItem(
+                packageName = packageName,
+                appName = appName,
+                title = title,
+                content = content,
+                timestamp = timestamp,
+                key = sbn.key
+            )
+
+            CoroutineScope(Dispatchers.IO).launch {
+                NotificationApp.repository.insert(notification)
+            }
+
+            Log.d("NotificationListener", "Captured: $appName - $title")
+        } else {
+            Log.d("NotificationListener", "Capture disabled, ignoring notification from $appName")
         }
-
-        Log.d("NotificationListener", "Captured: $appName - $title")
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
