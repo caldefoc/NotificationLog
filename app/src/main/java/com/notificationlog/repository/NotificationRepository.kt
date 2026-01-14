@@ -7,7 +7,10 @@ class NotificationRepository(private val database: NotificationDatabase) {
 
     suspend fun getAllNotifications() = database.notificationDao().getAll()
 
-    suspend fun getNotificationsByApp(packageName: String) = 
+    suspend fun getNotificationsSortedByDate() =
+        database.notificationDao().getNotificationsSortedByDate()
+
+    suspend fun getNotificationsSortedByApp() =
         database.notificationDao().getNotificationsSortedByApp()
 
     suspend fun insert(notification: NotificationItem) {

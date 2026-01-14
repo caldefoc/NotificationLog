@@ -13,13 +13,13 @@
         app:showAsAction="never" />
     
     <item
-        android:id="@+id/menu_export_screenshot"
-        android:title="Export as Screenshot"
+        android:id="@+id/menu_save_screenshot"
+        android:title="Save Screenshot"
         app:showAsAction="never" />
     
     <item
-        android:id="@+id/menu_export_json"
-        android:title="Export as JSON"
+        android:id="@+id/menu_save_text"
+        android:title="Save Text Log"
         app:showAsAction="never" />
     
     <item

@@ -1,13 +1,13 @@
 package com.notificationlog
 
 import android.app.Application
-import android.content.pm.PackageManager
-import android.service.notification.NotificationListenerService
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import android.provider.Settings  // ✅ Correct
+import com.notificationlog.model.NotificationItem
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -22,13 +22,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     
     private val _errorMessage = MutableLiveData<String?>()
     val errorMessage: LiveData<String?> = _errorMessage
+
+    private val _notifications = MutableLiveData<List<NotificationItem>>(emptyList())
+    val notifications: LiveData<List<NotificationItem>> = _notifications
+
+    private val handler = CoroutineExceptionHandler { _, throwable ->
+        _errorMessage.postValue("Unexpected error: ${throwable.message}")
+    }
     
     init {
         checkNotificationServiceStatus()
     }
     
     fun checkNotificationServiceStatus() {
-        viewModelScope.launch {
+        viewModelScope.launch(handler) {
             try {
                 val isEnabled = withContext(Dispatchers.IO) {
                     isNotificationServiceEnabled()
@@ -49,13 +56,40 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return flat?.contains(context.packageName) == true
     }
     
-    fun clearNotifications() {
-        _notificationCount.value = 0
-        // TODO: Clear from database when implemented
+    fun loadNotifications(sortType: SortType) {
+        viewModelScope.launch(Dispatchers.IO + handler) {
+            try {
+                val repo = NotificationApp.repository
+                val items = when (sortType) {
+                    SortType.DATE -> repo.getNotificationsSortedByDate()
+                    SortType.APP -> repo.getNotificationsSortedByApp()
+                }
+                withContext(Dispatchers.Main) {
+                    _notifications.value = items
+                    _notificationCount.value = items.size
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    _errorMessage.value = "Error loading notifications: ${e.message}"
+                }
+            }
+        }
     }
     
-    fun incrementNotificationCount() {
-        _notificationCount.value = (_notificationCount.value ?: 0) + 1
+    fun clearNotifications() {
+        viewModelScope.launch(Dispatchers.IO + handler) {
+            try {
+                NotificationApp.repository.deleteAll()
+                withContext(Dispatchers.Main) {
+                    _notifications.value = emptyList()
+                    _notificationCount.value = 0
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    _errorMessage.value = "Error clearing notifications: ${e.message}"
+                }
+            }
+        }
     }
     
     fun setError(message: String?) {
@@ -65,4 +99,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun clearError() {
         _errorMessage.value = null
     }
+}
+
+enum class SortType {
+    DATE,
+    APP
 }

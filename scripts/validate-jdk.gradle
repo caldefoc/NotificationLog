@@ -1,56 +1,53 @@
-// JDK 17 Validation Script
-// This script validates that the project is using JDK 17 as required
+// JDK 21 Validation Script
+// This script validates that the project is using JDK 21 as required
 // Run with: ./gradlew validateJdk
 // OR it runs automatically during build if enabled
 
 import org.gradle.api.GradleException
 
 // Define the required Java version
-def requiredJavaVersion = JavaVersion.VERSION_17
-def requiredMajorVersion = 17
+def requiredJavaVersion = JavaVersion.VERSION_21
+def requiredMajorVersion = "21"
 
 // Task to validate JDK version
 tasks.register('validateJdk') {
     group = 'verification'
-    description = 'Validates that JDK 17 is being used'
+    description = 'Validates that JDK 21 is being used'
     
     doLast {
         def currentJavaVersion = JavaVersion.current()
         println "🔍 Checking JDK version..."
-        println "   Required: JDK ${requiredJavaVersion} (Java 17)"
+        println "   Required: JDK ${requiredJavaVersion} (Java 21)"
         println "   Current:  JDK ${currentJavaVersion} (Java ${currentJavaVersion.majorVersion})"
         
         if (currentJavaVersion.majorVersion != requiredMajorVersion) {
             def errorMessage = """
             ❌ ERROR: Incorrect JDK version detected!
             
-            This project requires JDK ${requiredJavaVersion} (Java 17).
+            This project requires JDK ${requiredJavaVersion} (Java 21).
             Current JDK version: ${currentJavaVersion} (Java ${currentJavaVersion.majorVersion})
-            
-            Error "Unsupported class file major version ${currentJavaVersion.majorVersion + 44}" 
-            will occur if you continue with JDK ${currentJavaVersion.majorVersion}.
             
             TO FIX THIS:
             ============
-            1. Install JDK 17 if not already installed
-               Download from: https://adoptium.net/temurin/releases/?version=17
+            1. Install JDK 21 if not already installed
+               Download from: https://adoptium.net/temurin/releases/?version=21
             
             2. Configure your environment:
                Option A: Set JAVA_HOME environment variable
-                 Windows: set JAVA_HOME=C:\\Program Files\\Java\\jdk-17
-                 Mac/Linux: export JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk-17.jdk/Contents/Home
+                 Windows: set JAVA_HOME=C:\\Program Files\\Java\\jdk-21
+                 Mac/Linux: export JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk-21.jdk/Contents/Home
             
                Option B: Update gradle.properties
-                 Set: org.gradle.java.home=/path/to/your/jdk-17
+                 Set: org.gradle.java.home=/path/to/your/jdk-21
                  (Current gradle.java.home: ${project.findProperty('org.gradle.java.home') ?: 'Not set'})
             
                Option C: In Android Studio:
                  File > Settings > Build, Execution, Deployment > Build Tools > Gradle
-                 Under "Gradle JVM", select a JDK 17 installation
+                 Under "Gradle JVM", select a JDK 21 installation
             
             3. Verify the fix:
                Run: ./gradlew validateJdk
-               Should show: "✅ SUCCESS: JDK 17 detected correctly"
+               Should show: "✅ SUCCESS: JDK 21 detected correctly"
             
             4. Clean and rebuild:
                ./gradlew clean build
@@ -58,7 +55,7 @@ tasks.register('validateJdk') {
             
             throw new GradleException(errorMessage)
         } else {
-            println "✅ SUCCESS: JDK 17 detected correctly"
+            println "✅ SUCCESS: JDK 21 detected correctly"
             println "   You can now build the project without JDK version errors."
         }
     }

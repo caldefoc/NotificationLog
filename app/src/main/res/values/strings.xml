@@ -13,4 +13,6 @@
     <string name="post_notification_permission">Post notification permission is required.</string>
     <string name="grant_permission">Grant Permission</string>
     <string name="clear_notifications">Clear Notifications</string>
+    <string name="notification_permission_granted">Notification Permission Granted</string>
+    <string name="notification_access_enabled">Notification Access Enabled</string>
 </resources>

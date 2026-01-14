@@ -2,6 +2,7 @@
 .gradle/
 /local.properties
 **/build/
+/temp_gradle_home/
 /captures/
 .externalNativeBuild/
 .idea/
