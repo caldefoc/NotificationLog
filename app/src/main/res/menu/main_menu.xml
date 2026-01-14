@@ -1,35 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
-    
+    <item
+        android:id="@+id/menu_file_exit"
+        android:title="Exit"
+        app:showAsAction="never" />
     <item
         android:id="@+id/menu_sort_date"
         android:title="Sort by Date"
         app:showAsAction="never" />
-    
     <item
         android:id="@+id/menu_sort_app"
         android:title="Sort by App"
         app:showAsAction="never" />
-    
     <item
         android:id="@+id/menu_save_screenshot"
         android:title="Save Screenshot"
         app:showAsAction="never" />
-    
     <item
         android:id="@+id/menu_save_text"
         android:title="Save Text Log"
         app:showAsAction="never" />
-    
     <item
         android:id="@+id/menu_about"
         android:title="About"
         app:showAsAction="never" />
-    
+        
+    <!-- New Options -->
     <item
-        android:id="@+id/menu_exit"
-        android:title="Exit"
+        android:id="@+id/menu_toggle_theme"
+        android:title="Toggle Dark Mode"
         app:showAsAction="never" />
-    
+    <item
+        android:id="@+id/menu_toggle_running_notif"
+        android:title="Show Running Notification"
+        android:checkable="true"
+        app:showAsAction="never" />
 </menu>

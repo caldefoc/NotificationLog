@@ -75,6 +75,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
+
+    fun deleteNotification(item: NotificationItem) {
+        viewModelScope.launch(Dispatchers.IO + handler) {
+            try {
+                NotificationApp.repository.delete(item)
+                loadNotifications(SortType.DATE) // Refresh list
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    _errorMessage.value = "Error deleting notification: ${e.message}"
+                }
+            }
+        }
+    }
     
     fun clearNotifications() {
         viewModelScope.launch(Dispatchers.IO + handler) {

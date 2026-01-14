@@ -11,7 +11,8 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 class NotificationAdapter(
-    private val onItemClick: (NotificationItem) -> Unit
+    private val onItemClick: (NotificationItem) -> Unit,
+    private val onDeleteClick: (NotificationItem) -> Unit
 ) : ListAdapter<NotificationItem, NotificationAdapter.ViewHolder>(DiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -22,27 +23,29 @@ class NotificationAdapter(
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        holder.bind(getItem(position))
+        val item = getItem(position)
+        holder.bind(item)
     }
 
-    inner class ViewHolder(
-        private val binding: ItemNotificationBinding
-    ) : RecyclerView.ViewHolder(binding.root) {
+    inner class ViewHolder(private val binding: ItemNotificationBinding) :
+        RecyclerView.ViewHolder(binding.root) {
 
         fun bind(item: NotificationItem) {
-            binding.apply {
-                textAppName.text = item.appName
-                textTitle.text = item.title
-                textContent.text = item.content
-                textTimestamp.text = formatTimestamp(item.timestamp)
-                
-                root.setOnClickListener { onItemClick(item) }
-            }
-        }
+            binding.notification = item
+            
+            // Format date
+            val dateFormat = java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale.getDefault())
+            binding.textDate.text = dateFormat.format(java.util.Date(item.timestamp))
 
-        private fun formatTimestamp(timestamp: Long): String {
-            val sdf = SimpleDateFormat("MM/dd/yyyy HH:mm:ss", Locale.getDefault())
-            return sdf.format(Date(timestamp))
+            binding.root.setOnClickListener {
+                onItemClick(item)
+            }
+            
+            binding.btnDelete.setOnClickListener {
+                onDeleteClick(item)
+            }
+            
+            binding.executePendingBindings()
         }
     }
 

@@ -15,4 +15,5 @@
     <string name="clear_notifications">Clear Notifications</string>
     <string name="notification_permission_granted">Notification Permission Granted</string>
     <string name="notification_access_enabled">Notification Access Enabled</string>
+    <string name="notification_count_default">Notification Count: 0</string>
 </resources>
