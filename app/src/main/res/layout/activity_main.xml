@@ -100,6 +100,15 @@
                 android:text="@string/notification_count_default"
                 android:textColor="@color/white"
                 android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/tvLastCaptured"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="Last: None"
+                android:textColor="@color/white"
+                android:textSize="14sp" />
         </LinearLayout>
 
         <androidx.recyclerview.widget.RecyclerView

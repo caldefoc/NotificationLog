@@ -2,9 +2,11 @@ package com.notificationlog
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.content.BroadcastReceiver
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -45,6 +47,16 @@ class MainActivity : AppCompatActivity() {
     private lateinit var prefs: SharedPreferences
     private var currentSort: SortType = SortType.DATE
     private var captureEnabled: Boolean = true
+    private val notificationsUpdatedReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            viewModel.loadNotifications(currentSort)
+            val lastCaptured = intent.getLongExtra("last_captured", 0)
+            if (lastCaptured > 0) {
+                val sdf = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+                binding.tvLastCaptured.text = getString(R.string.last_captured_label, sdf.format(Date(lastCaptured)))
+            }
+        }
+    }
     
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -59,9 +71,12 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // Load preferences
         prefs = getSharedPreferences("com.notificationlog.prefs", Context.MODE_PRIVATE)
         captureEnabled = prefs.getBoolean("capture_enabled", true)
+        if (!captureEnabled) {
+            captureEnabled = true
+            prefs.edit().putBoolean("capture_enabled", true).apply()
+        }
         val isDarkMode = prefs.getBoolean("dark_mode", false)
         AppCompatDelegate.setDefaultNightMode(
             if (isDarkMode) AppCompatDelegate.MODE_NIGHT_YES else AppCompatDelegate.MODE_NIGHT_NO
@@ -86,11 +101,20 @@ class MainActivity : AppCompatActivity() {
     
     override fun onResume() {
         super.onResume()
+        registerReceiver(
+            notificationsUpdatedReceiver,
+            IntentFilter("com.notificationlog.NOTIFICATIONS_UPDATED")
+        )
         viewModel.checkNotificationServiceStatus()
         viewModel.loadNotifications(currentSort)
         updateServiceStatusText()
         updateButtonStates()
         checkRunningNotification()
+    }
+    
+    override fun onPause() {
+        super.onPause()
+        unregisterReceiver(notificationsUpdatedReceiver)
     }
 
     private fun setupRecyclerView() {

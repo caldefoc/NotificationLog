@@ -1,17 +1,44 @@
 package com.notificationlog
 
 import android.content.Context
+import android.content.Intent
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
+import androidx.room.Room
+import com.notificationlog.data.NotificationDatabase
 import com.notificationlog.model.NotificationItem
+import com.notificationlog.repository.NotificationRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 class NotificationListener : NotificationListenerService() {
 
+    private val job = SupervisorJob()
+    private val scope = CoroutineScope(Dispatchers.IO + job)
+    private val repository by lazy {
+        val database = Room.databaseBuilder(
+            applicationContext,
+            NotificationDatabase::class.java,
+            "notification_database"
+        ).build()
+        NotificationRepository(database)
+    }
+
+    override fun onListenerConnected() {
+        super.onListenerConnected()
+        Log.d("NotificationListener", "Listener connected")
+    }
+
+    override fun onListenerDisconnected() {
+        super.onListenerDisconnected()
+        Log.d("NotificationListener", "Listener disconnected")
+    }
+
     override fun onNotificationPosted(sbn: StatusBarNotification) {
+        Log.d("NotificationListener", "onNotificationPosted: ${sbn.packageName}")
         val packageName = sbn.packageName
         val extras = sbn.notification.extras
         
@@ -19,7 +46,6 @@ class NotificationListener : NotificationListenerService() {
         val content = extras.getString("android.text") ?: ""
         val timestamp = sbn.postTime
         
-        // Get app name
         val appName = try {
             packageManager.getApplicationLabel(
                 packageManager.getApplicationInfo(packageName, 0)
@@ -41,11 +67,17 @@ class NotificationListener : NotificationListenerService() {
                 key = sbn.key
             )
 
-            CoroutineScope(Dispatchers.IO).launch {
-                NotificationApp.repository.insert(notification)
+            scope.launch {
+                try {
+                    repository.insert(notification)
+                    val intent = Intent("com.notificationlog.NOTIFICATIONS_UPDATED")
+                    intent.putExtra("last_captured", timestamp)
+                    sendBroadcast(intent)
+                    Log.d("NotificationListener", "Captured: $appName - $title")
+                } catch (e: Exception) {
+                    Log.e("NotificationListener", "Error inserting notification: ${e.message}", e)
+                }
             }
-
-            Log.d("NotificationListener", "Captured: $appName - $title")
         } else {
             Log.d("NotificationListener", "Capture disabled, ignoring notification from $appName")
         }
@@ -56,13 +88,16 @@ class NotificationListener : NotificationListenerService() {
         Log.d("NotificationListener", "Notification removed: ${sbn.key}")
     }
 
-    // If you need to cancel a notification manually, use this method
-    // It calls the parent class's cancelNotification method
     private fun cancelNotificationByKey(key: String) {
         try {
-            cancelNotification(key) // This is the correct method name
+            cancelNotification(key)
         } catch (e: SecurityException) {
             Log.e("NotificationListener", "Cannot cancel notification: ${e.message}")
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        job.cancel()
     }
 }

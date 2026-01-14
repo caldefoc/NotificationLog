@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<notification-listener-service xmlns:android="http://schemas.android.com/apk/res/android"
-    android:description="@string/notification_logger_service"
-    android:settingsActivity="com.notificationlog.MainActivity" />
+<notification-listener-service
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:summary="@string/notification_logger_service" />
