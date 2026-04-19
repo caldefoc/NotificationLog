@@ -6,14 +6,30 @@ plugins {
     id 'com.google.devtools.ksp'
     // ✅ APPLY PARCELIZE PLUGIN
     id 'kotlin-parcelize'
-    // ❌ REMOVE 'kotlin-kapt' if you are fully migrating to KSP
-    // id 'kotlin-kapt'
+}
+
+// Load keystore properties from keystore.properties file
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 }
 
 // ✅ Then android block
 android {
     namespace 'com.notificationlog'  // your actual package name
     compileSdk 34  // or your target SDK
+
+    signingConfigs {
+        release {
+            if (keystorePropertiesFile.exists()) {
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
+    }
 
     defaultConfig {
         applicationId "com.notificationlog"
@@ -25,6 +41,7 @@ android {
 
     buildTypes {
         release {
+            signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }

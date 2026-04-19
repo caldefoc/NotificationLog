@@ -1,5 +1,6 @@
 package com.notificationlog
 
+import android.app.PendingIntent
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.BroadcastReceiver
@@ -47,6 +48,12 @@ class MainActivity : AppCompatActivity() {
     private lateinit var prefs: SharedPreferences
     private var currentSort: SortType = SortType.DATE
     private var captureEnabled: Boolean = true
+    private val listenerDisconnectedReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            showNotificationAccessRevokedDialog()
+        }
+    }
+    
     private val notificationsUpdatedReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             viewModel.loadNotifications(currentSort)
@@ -95,16 +102,34 @@ class MainActivity : AppCompatActivity() {
         observeViewModel()
         
         createNotificationChannel()
+        createWarningNotificationChannel()
         
         viewModel.loadNotifications(currentSort)
     }
     
     override fun onResume() {
         super.onResume()
-        registerReceiver(
-            notificationsUpdatedReceiver,
-            IntentFilter("com.notificationlog.NOTIFICATIONS_UPDATED")
-        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(
+                notificationsUpdatedReceiver,
+                IntentFilter("com.notificationlog.NOTIFICATIONS_UPDATED"),
+                Context.RECEIVER_NOT_EXPORTED
+            )
+            registerReceiver(
+                listenerDisconnectedReceiver,
+                IntentFilter("com.notificationlog.LISTENER_DISCONNECTED"),
+                Context.RECEIVER_NOT_EXPORTED
+            )
+        } else {
+            registerReceiver(
+                notificationsUpdatedReceiver,
+                IntentFilter("com.notificationlog.NOTIFICATIONS_UPDATED")
+            )
+            registerReceiver(
+                listenerDisconnectedReceiver,
+                IntentFilter("com.notificationlog.LISTENER_DISCONNECTED")
+            )
+        }
         viewModel.checkNotificationServiceStatus()
         viewModel.loadNotifications(currentSort)
         updateServiceStatusText()
@@ -115,6 +140,7 @@ class MainActivity : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         unregisterReceiver(notificationsUpdatedReceiver)
+        unregisterReceiver(listenerDisconnectedReceiver)
     }
 
     private fun setupRecyclerView() {
@@ -601,6 +627,39 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun createWarningNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val name = "Permission Warnings"
+            val descriptionText = "Warnings when notification access is lost"
+            val importance = NotificationManager.IMPORTANCE_HIGH
+            val channel = NotificationChannel("warning_channel", name, importance).apply {
+                description = descriptionText
+                enableVibration(true)
+            }
+            val notificationManager: NotificationManager =
+                getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(channel)
+        }
+    }
+    
+    private fun showNotificationAccessRevokedDialog() {
+        if (!isFinishing && !isDestroyed) {
+            updateServiceStatusText()
+            updateButtonStates()
+            AlertDialog.Builder(this)
+                .setTitle("Notification Access Lost")
+                .setMessage("Android has revoked this app's notification access permission. " +
+                    "Notifications are no longer being captured.\n\n" +
+                    "Would you like to re-enable it now?")
+                .setCancelable(false)
+                .setPositiveButton("Open Settings") { _, _ ->
+                    openNotificationAccessSettings()
+                }
+                .setNegativeButton("Later", null)
+                .show()
+        }
+    }
+    
     private fun showAboutDialog() {
         AlertDialog.Builder(this)
             .setTitle("About")
@@ -631,10 +690,21 @@ class MainActivity : AppCompatActivity() {
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         
         if (show && isRunning && capture) {
+            val intent = Intent(this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+            val pendingIntent = PendingIntent.getActivity(
+                this,
+                0,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
             val notification = NotificationCompat.Builder(this, "service_channel")
                 .setSmallIcon(android.R.drawable.ic_menu_view)
                 .setContentTitle("Notification Log capture is running...")
                 .setContentText("Capturing notifications in background")
+                .setContentIntent(pendingIntent)
+                .setAutoCancel(false)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .setOngoing(true)
                 .build()

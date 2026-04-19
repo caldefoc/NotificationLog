@@ -9,8 +9,19 @@
 *.iml
 *.apk
 *.keystore
+keystore.properties
 .DS_Store
 # Kotlin/IntelliJ
 out/
 # Mac
 *.DS_Store
+
+# VS Code
+.vscode/
+
+# Qwen/AI assistant cache
+.qwen/
+
+# Stray files
+kotlin
+xml
