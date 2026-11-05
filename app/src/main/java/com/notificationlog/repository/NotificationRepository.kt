@@ -13,8 +13,14 @@ class NotificationRepository(private val database: NotificationDatabase) {
     suspend fun getNotificationsSortedByApp() =
         database.notificationDao().getNotificationsSortedByApp()
 
+    suspend fun latestForKey(key: String) = database.notificationDao().latestForKey(key)
+
     suspend fun insert(notification: NotificationItem) {
         database.notificationDao().insert(notification)
+    }
+
+    suspend fun bumpUpdateCount(id: Long, lastUpdated: Long) {
+        database.notificationDao().bumpUpdateCount(id, lastUpdated)
     }
 
     suspend fun delete(notification: NotificationItem) {

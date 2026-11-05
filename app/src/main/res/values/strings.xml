@@ -17,4 +17,5 @@
     <string name="notification_access_enabled">Notification Access Enabled</string>
     <string name="notification_count_default">Notification Count: 0</string>
     <string name="last_captured_label">Last: %s</string>
+    <string name="last_captured_none">Last: None</string>
 </resources>

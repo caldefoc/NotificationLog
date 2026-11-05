@@ -48,6 +48,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var prefs: SharedPreferences
     private var currentSort: SortType = SortType.DATE
     private var captureEnabled: Boolean = true
+    private var accessDialog: AlertDialog? = null
+    private var lastServiceStatus: Boolean? = null
+    private val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
     private val listenerDisconnectedReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             showNotificationAccessRevokedDialog()
@@ -59,8 +62,8 @@ class MainActivity : AppCompatActivity() {
             viewModel.loadNotifications(currentSort)
             val lastCaptured = intent.getLongExtra("last_captured", 0)
             if (lastCaptured > 0) {
-                val sdf = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
-                binding.tvLastCaptured.text = getString(R.string.last_captured_label, sdf.format(Date(lastCaptured)))
+                binding.tvLastCaptured.text =
+                    getString(R.string.last_captured_label, timeFormat.format(Date(lastCaptured)))
             }
         }
     }
@@ -79,11 +82,13 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         
         prefs = getSharedPreferences("com.notificationlog.prefs", Context.MODE_PRIVATE)
+        // Honour what the user last chose. This used to force capture back on at every
+        // launch, which silently undid both "Stop Capture" and "Exit".
         captureEnabled = prefs.getBoolean("capture_enabled", true)
-        if (!captureEnabled) {
-            captureEnabled = true
-            prefs.edit().putBoolean("capture_enabled", true).apply()
-        }
+
+        currentSort = savedInstanceState?.getString(STATE_SORT)
+            ?.let { runCatching { SortType.valueOf(it) }.getOrNull() }
+            ?: SortType.DATE
         val isDarkMode = prefs.getBoolean("dark_mode", false)
         AppCompatDelegate.setDefaultNightMode(
             if (isDarkMode) AppCompatDelegate.MODE_NIGHT_YES else AppCompatDelegate.MODE_NIGHT_NO
@@ -141,6 +146,16 @@ class MainActivity : AppCompatActivity() {
         super.onPause()
         unregisterReceiver(notificationsUpdatedReceiver)
         unregisterReceiver(listenerDisconnectedReceiver)
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        // Without this the chosen sort silently reverted to DATE on rotation.
+        outState.putString(STATE_SORT, currentSort.name)
+    }
+
+    companion object {
+        private const val STATE_SORT = "state_sort"
     }
 
     private fun setupRecyclerView() {
@@ -326,9 +341,13 @@ class MainActivity : AppCompatActivity() {
             updateServiceStatusText()
             updateButtonStates()
             checkRunningNotification()
-            if (!isRunning) {
+            // serviceStatus starts out as `false`, so observing it fired this dialog on
+            // every launch even with access granted. Only warn on a real true -> false
+            // transition; the initial check is handled by checkPermissions().
+            if (!isRunning && lastServiceStatus == true) {
                 showNotificationAccessDialog()
             }
+            lastServiceStatus = isRunning
         }
         
         viewModel.notificationCount.observe(this) { count ->
@@ -338,7 +357,24 @@ class MainActivity : AppCompatActivity() {
 
         viewModel.notifications.observe(this) { items ->
             adapter.submitList(items)
+            // The "Last:" label was only ever fed by the live broadcast, so it read
+            // "None" after every relaunch even with a full list. Derive it from the data.
+            val newest = items.maxOfOrNull { it.timestamp }
+            binding.tvLastCaptured.text = if (newest != null && newest > 0) {
+                getString(R.string.last_captured_label, timeFormat.format(Date(newest)))
+            } else {
+                getString(R.string.last_captured_none)
+            }
             updateButtonStates()
+        }
+
+        // Errors were being written to a LiveData nobody observed, so every failure
+        // (load, delete, clear) vanished silently.
+        viewModel.errorMessage.observe(this) { message ->
+            if (!message.isNullOrBlank()) {
+                Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+                viewModel.clearError()
+            }
         }
     }
     
@@ -373,7 +409,11 @@ class MainActivity : AppCompatActivity() {
     }
     
     private fun showNotificationAccessDialog() {
-        AlertDialog.Builder(this)
+        // checkPermissions() and the serviceStatus observer both fire on resume, which
+        // could stack two identical dialogs.
+        if (isFinishing || isDestroyed || accessDialog?.isShowing == true) return
+
+        accessDialog = AlertDialog.Builder(this)
             .setTitle(getString(R.string.enable_notification_access))
             .setMessage(getString(R.string.notification_access_required))
             .setPositiveButton(getString(R.string.open_settings)) { _, _ ->

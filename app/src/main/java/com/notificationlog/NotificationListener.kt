@@ -11,26 +11,36 @@ import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
 import androidx.core.app.NotificationCompat
-import androidx.room.Room
-import com.notificationlog.data.NotificationDatabase
 import com.notificationlog.model.NotificationItem
 import com.notificationlog.repository.NotificationRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 class NotificationListener : NotificationListenerService() {
 
     private val job = SupervisorJob()
     private val scope = CoroutineScope(Dispatchers.IO + job)
-    private val repository by lazy {
-        val database = Room.databaseBuilder(
-            applicationContext,
-            NotificationDatabase::class.java,
-            "notification_database"
-        ).build()
-        NotificationRepository(database)
+
+    // The read-then-write de-duplication below is not atomic. Two identical
+    // notifications arriving back to back both read "no existing row" and both
+    // insert — observed on device as two rows sharing a key with updateCount 1.
+    private val insertMutex = Mutex()
+
+    // The Application owns the only Room instance. This used to build a second
+    // database connection to the same file, which meant no shared invalidation
+    // and avoidable lock contention.
+    private val repository: NotificationRepository
+        get() = NotificationApp.repository
+
+    companion object {
+        const val ACTION_UPDATED = "com.notificationlog.NOTIFICATIONS_UPDATED"
+        private const val TAG = "NotificationListener"
+        private const val PREFS = "com.notificationlog.prefs"
+        private const val KEY_CAPTURE_ENABLED = "capture_enabled"
     }
 
     override fun onListenerConnected() {
@@ -107,48 +117,73 @@ class NotificationListener : NotificationListenerService() {
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
-        Log.d("NotificationListener", "onNotificationPosted: ${sbn.packageName}")
-        val packageName = sbn.packageName
+        val pkg = sbn.packageName
+
+        // Never record our own notifications (the "capture is running" status and the
+        // "access lost" warning). Without this the app logs itself on every toggle.
+        if (pkg == packageName) return
+
         val extras = sbn.notification.extras
-        
         val title = extras.getString("android.title") ?: ""
         val content = extras.getString("android.text") ?: ""
-        val timestamp = sbn.postTime
-        
-        val appName = try {
-            packageManager.getApplicationLabel(
-                packageManager.getApplicationInfo(packageName, 0)
-            ).toString()
-        } catch (e: Exception) {
-            packageName
+
+        // Group summaries and progress stubs carry nothing worth keeping.
+        if (title.isBlank() && content.isBlank()) {
+            Log.d(TAG, "Skipping empty notification from $pkg")
+            return
         }
 
-        val prefs = getSharedPreferences("com.notificationlog.prefs", Context.MODE_PRIVATE)
-        val captureEnabled = prefs.getBoolean("capture_enabled", true)
+        val prefs = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (!prefs.getBoolean(KEY_CAPTURE_ENABLED, true)) {
+            Log.d(TAG, "Capture disabled, ignoring notification from $pkg")
+            return
+        }
 
-        if (captureEnabled) {
-            val notification = NotificationItem(
-                packageName = packageName,
-                appName = appName,
-                title = title,
-                content = content,
-                timestamp = timestamp,
-                key = sbn.key
-            )
+        val key = sbn.key
+        val now = System.currentTimeMillis()
 
-            scope.launch {
+        val appName = try {
+            packageManager.getApplicationLabel(
+                packageManager.getApplicationInfo(pkg, 0)
+            ).toString()
+        } catch (e: Exception) {
+            pkg
+        }
+
+        scope.launch {
+            insertMutex.withLock {
                 try {
-                    repository.insert(notification)
-                    val intent = Intent("com.notificationlog.NOTIFICATIONS_UPDATED")
-                    intent.putExtra("last_captured", timestamp)
-                    sendBroadcast(intent)
-                    Log.d("NotificationListener", "Captured: $appName - $title")
+                    val latest = if (key != null) repository.latestForKey(key) else null
+
+                    if (latest != null && latest.title == title && latest.content == content) {
+                        // Same key, same content: an ongoing notification refreshing itself.
+                        // Bump the counter instead of appending a duplicate row.
+                        repository.bumpUpdateCount(latest.id, now)
+                        Log.d(TAG, "Refreshed existing entry: $appName x${latest.updateCount + 1}")
+                    } else {
+                        repository.insert(
+                            NotificationItem(
+                                packageName = pkg,
+                                appName = appName,
+                                title = title,
+                                content = content,
+                                timestamp = if (sbn.postTime > 0) sbn.postTime else now,
+                                key = key,
+                                lastUpdated = now
+                            )
+                        )
+                        Log.d(TAG, "Captured: $appName - $title")
+                    }
+
+                    sendBroadcast(
+                        Intent(ACTION_UPDATED)
+                            .setPackage(packageName)
+                            .putExtra("last_captured", now)
+                    )
                 } catch (e: Exception) {
-                    Log.e("NotificationListener", "Error inserting notification: ${e.message}", e)
+                    Log.e(TAG, "Error recording notification: ${e.message}", e)
                 }
             }
-        } else {
-            Log.d("NotificationListener", "Capture disabled, ignoring notification from $appName")
         }
     }
 
@@ -161,7 +196,7 @@ class NotificationListener : NotificationListenerService() {
         try {
             cancelNotification(key)
         } catch (e: SecurityException) {
-            Log.e("NotificationListener", "Cannot cancel notification: ${e.message}")
+            Log.e(TAG, "Cannot cancel notification: ${e.message}")
         }
     }
 

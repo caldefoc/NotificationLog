@@ -15,12 +15,13 @@ class NotificationApp : Application() {
     override fun onCreate() {
         super.onCreate()
         
-        // Initialize Room database
+        // Initialize Room database. This is the single instance for the whole process —
+        // NotificationListener used to build a second one on the same file.
         val database = Room.databaseBuilder(
             applicationContext,
             NotificationDatabase::class.java,
             "notification_database"
-        ).build()
+        ).addMigrations(NotificationDatabase.MIGRATION_1_2).build()
         
         // Initialize repository
         repository = NotificationRepository(database)
