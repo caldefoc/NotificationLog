@@ -11,6 +11,7 @@ import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -22,12 +23,17 @@ import android.view.MenuItem
 import android.view.View
 import android.widget.PopupMenu
 import android.widget.Toast
+import androidx.activity.SystemBarStyle
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 import androidx.appcompat.widget.TooltipCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -89,21 +95,39 @@ class MainActivity : AppCompatActivity() {
         currentSort = savedInstanceState?.getString(STATE_SORT)
             ?.let { runCatching { SortType.valueOf(it) }.getOrNull() }
             ?: SortType.DATE
+        // Night mode is applied once in NotificationApp, before this activity exists.
         val isDarkMode = prefs.getBoolean("dark_mode", false)
-        AppCompatDelegate.setDefaultNightMode(
-            if (isDarkMode) AppCompatDelegate.MODE_NIGHT_YES else AppCompatDelegate.MODE_NIGHT_NO
+
+        // Android 15+ (targetSdk 35+) enforces edge-to-edge whether we ask or not, so
+        // opt in everywhere and handle the insets ourselves. The toolbar is always
+        // colourPrimary, hence light (white) status-bar icons; the navigation bar sits
+        // on colorSurface and follows our own dark-mode preference, not the system's.
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
+            navigationBarStyle = if (isDarkMode) {
+                SystemBarStyle.dark(Color.TRANSPARENT)
+            } else {
+                SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
+            }
         )
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
         setSupportActionBar(binding.toolbar)
+        applySystemBarInsets()
         
         viewModel = ViewModelProvider(this)[MainViewModel::class.java]
 
         setupRecyclerView()
         setupMenuBar()
         setupBottomButtons()
-        checkPermissions()
+        // First launch shows the data-handling disclosure instead of the access prompt;
+        // the disclosure hands off to checkPermissions() once acknowledged.
+        if (prefs.getBoolean(PREF_DISCLOSURE_ACCEPTED, false)) {
+            checkPermissions()
+        } else {
+            showDisclosure()
+        }
         observeViewModel()
         
         createNotificationChannel()
@@ -112,6 +136,35 @@ class MainActivity : AppCompatActivity() {
         viewModel.loadNotifications(currentSort)
     }
     
+    /**
+     * With edge-to-edge the window no longer shrinks to avoid the system bars, so the
+     * padding has to come from the insets. The toolbar keeps its own colour behind the
+     * status bar; the button row keeps its background behind the navigation bar.
+     */
+    private fun applySystemBarInsets() {
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
+            val bars = insets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+            )
+            view.setPadding(bars.left, 0, bars.right, 0)
+            insets
+        }
+
+        ViewCompat.setOnApplyWindowInsetsListener(binding.toolbar) { view, insets ->
+            val top = insets.getInsets(
+                WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.displayCutout()
+            ).top
+            view.updatePadding(top = top)
+            insets
+        }
+
+        ViewCompat.setOnApplyWindowInsetsListener(binding.buttonContainer) { view, insets ->
+            val bottom = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
+            view.updatePadding(bottom = bottom)
+            insets
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -156,6 +209,7 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val STATE_SORT = "state_sort"
+        private const val PREF_DISCLOSURE_ACCEPTED = "disclosure_accepted"
     }
 
     private fun setupRecyclerView() {
@@ -177,14 +231,37 @@ class MainActivity : AppCompatActivity() {
 
     private fun showFileMenu(view: View) {
         val popup = PopupMenu(this, view)
-        popup.menu.add(0, R.id.menu_file_exit, 0, "Exit")
+        popup.menu.add(0, R.id.menu_compact_duplicates, 0, "Compact Duplicates")
+        popup.menu.add(0, R.id.menu_file_exit, 1, "Exit")
         popup.setOnMenuItemClickListener { item ->
-            if (item.itemId == R.id.menu_file_exit) {
-                showExitConfirmation()
-                true
-            } else false
+            when (item.itemId) {
+                R.id.menu_compact_duplicates -> {
+                    showCompactConfirmation()
+                    true
+                }
+                R.id.menu_file_exit -> {
+                    showExitConfirmation()
+                    true
+                }
+                else -> false
+            }
         }
         popup.show()
+    }
+
+    private fun showCompactConfirmation() {
+        AlertDialog.Builder(this)
+            .setTitle("Compact duplicates")
+            .setMessage(
+                "Merge entries that share the same app, notification key, title and text " +
+                    "into a single row, keeping the newest content and a count of how many " +
+                    "times it appeared?\n\nThis cannot be undone."
+            )
+            .setPositiveButton("Compact") { _, _ ->
+                viewModel.compactDuplicates()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun showSortMenu(view: View) {
@@ -376,6 +453,17 @@ class MainActivity : AppCompatActivity() {
                 viewModel.clearError()
             }
         }
+
+        viewModel.compactResult.observe(this) { removed ->
+            if (removed != null) {
+                Toast.makeText(
+                    this,
+                    getString(R.string.compact_result, removed),
+                    Toast.LENGTH_LONG
+                ).show()
+                viewModel.consumeCompactResult()
+            }
+        }
     }
     
     private fun isNotificationServiceEnabled(): Boolean {
@@ -408,6 +496,23 @@ class MainActivity : AppCompatActivity() {
         }
     }
     
+    /**
+     * Store policy expects notification-access apps to explain what is collected and why
+     * before the permission prompt. Shown once, on first launch.
+     */
+    private fun showDisclosure() {
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.disclosure_title))
+            .setMessage(getString(R.string.disclosure_message))
+            .setPositiveButton(getString(R.string.disclosure_accept)) { _, _ ->
+                prefs.edit().putBoolean(PREF_DISCLOSURE_ACCEPTED, true).apply()
+                checkPermissions()
+            }
+            .setNegativeButton(getString(R.string.close_app)) { _, _ -> finishAffinity() }
+            .setCancelable(false)
+            .show()
+    }
+
     private fun showNotificationAccessDialog() {
         // checkPermissions() and the serviceStatus observer both fire on resume, which
         // could stack two identical dialogs.
@@ -550,6 +655,10 @@ class MainActivity : AppCompatActivity() {
             R.id.menu_save_screenshot -> { saveScreenshot(); true }
             R.id.menu_save_text -> { saveTextLog(); true }
             R.id.menu_about -> { showAboutDialog(); true }
+            R.id.menu_compact_duplicates -> {
+                showCompactConfirmation()
+                true
+            }
             R.id.menu_file_exit -> {
                 showExitConfirmation()
                 true

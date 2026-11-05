@@ -18,4 +18,9 @@
     <string name="notification_count_default">Notification Count: 0</string>
     <string name="last_captured_label">Last: %s</string>
     <string name="last_captured_none">Last: None</string>
+    <string name="disclosure_title">What this app records</string>
+    <string name="disclosure_message">Notification Log saves the notifications your phone receives — app name, title, text and time — into a database on this device only. The app has no network permission, so nothing can be uploaded.\n\nNotification text can include messages, addresses and one-time codes, so treat this log as private. Clear removes everything; Capture stops recording; you can revoke access at any time in Settings → Notification access.\n\nYou will be asked to grant notification access next.</string>
+    <string name="disclosure_accept">I understand</string>
+    <string name="close_app">Exit</string>
+    <string name="compact_result">Compacted: %1$d duplicate rows removed</string>
 </resources>

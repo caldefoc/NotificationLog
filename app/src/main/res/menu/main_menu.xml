@@ -38,6 +38,11 @@
         app:showAsAction="never" />
 
     <item
+        android:id="@+id/menu_compact_duplicates"
+        android:title="Compact Duplicates"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/menu_file_exit"
         android:title="Exit"
         app:showAsAction="never" />

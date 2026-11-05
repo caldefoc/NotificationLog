@@ -26,6 +26,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _notifications = MutableLiveData<List<NotificationItem>>(emptyList())
     val notifications: LiveData<List<NotificationItem>> = _notifications
 
+    private val _compactResult = MutableLiveData<Int?>()
+    val compactResult: LiveData<Int?> = _compactResult
+
+    /** Remembered so refreshes after a delete keep the user's chosen order. */
+    private var currentSort: SortType = SortType.DATE
+
     private val handler = CoroutineExceptionHandler { _, throwable ->
         _errorMessage.postValue("Unexpected error: ${throwable.message}")
     }
@@ -57,6 +63,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
     
     fun loadNotifications(sortType: SortType) {
+        currentSort = sortType
         viewModelScope.launch(Dispatchers.IO + handler) {
             try {
                 val repo = NotificationApp.repository
@@ -80,7 +87,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.IO + handler) {
             try {
                 NotificationApp.repository.delete(item)
-                loadNotifications(SortType.DATE) // Refresh list
+                loadNotifications(currentSort) // Refresh list, keeping the current order
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     _errorMessage.value = "Error deleting notification: ${e.message}"
@@ -107,6 +114,30 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     
     fun setError(message: String?) {
         _errorMessage.value = message
+    }
+
+    /**
+     * Collapses repeated identical postings into one row each. Mainly a repair action
+     * for databases written before de-duplication existed; new traffic is merged live.
+     */
+    fun compactDuplicates() {
+        viewModelScope.launch(Dispatchers.IO + handler) {
+            try {
+                val removed = NotificationApp.repository.compactDuplicates()
+                withContext(Dispatchers.Main) {
+                    _compactResult.value = removed
+                    loadNotifications(currentSort)
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    _errorMessage.value = "Error compacting log: ${e.message}"
+                }
+            }
+        }
+    }
+
+    fun consumeCompactResult() {
+        _compactResult.value = null
     }
     
     fun clearError() {

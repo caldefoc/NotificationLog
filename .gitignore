@@ -1,4 +1,4 @@
-﻿# Android / Gradle / IDE
+# Android / Gradle / IDE
 .gradle/
 /local.properties
 **/build/
@@ -22,6 +22,7 @@ out/
 # Qwen/AI assistant cache
 .qwen/
 
-# Stray files
-kotlin
-xml
+# Stray files — anchored to the repo root: an unanchored `xml` pattern also
+# matches app/src/main/res/xml/, which silently ignored the backup rules.
+/kotlin
+/xml
