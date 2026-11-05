@@ -2,7 +2,6 @@
 <resources>
     <string name="app_name">Notification Log</string>
     <string name="notification_logger_service">Notification Logger Service</string>
-    <string name="service_running">Service is running</string>
     <string name="service_stopped">Service is stopped</string>
     <string name="notification_count">Notification Count: %d</string>
     <string name="enable_notification_access">Enable Notification Access</string>
@@ -12,9 +11,6 @@
     <string name="permission_required">Permission Required</string>
     <string name="post_notification_permission">Post notification permission is required.</string>
     <string name="grant_permission">Grant Permission</string>
-    <string name="clear_notifications">Clear Notifications</string>
-    <string name="notification_permission_granted">Notification Permission Granted</string>
-    <string name="notification_access_enabled">Notification Access Enabled</string>
     <string name="notification_count_default">Notification Count: 0</string>
     <string name="last_captured_label">Last: %s</string>
     <string name="last_captured_none">Last: None</string>
@@ -30,4 +26,35 @@
     <string name="capture_stopped">Capture Stopped</string>
     <string name="capture_label_start">Start</string>
     <string name="capture_label_stop">Stop</string>
+
+    <!-- Menu bar -->
+    <string name="menu_file">File</string>
+    <string name="menu_sort">Sort</string>
+    <string name="menu_save">Save</string>
+    <string name="menu_about">About</string>
+    <string name="menu_exit">Exit</string>
+
+    <!-- Overflow menu -->
+    <string name="menu_sort_by_date">Sort by Date</string>
+    <string name="menu_sort_by_app">Sort by App</string>
+    <string name="menu_refresh">Refresh</string>
+    <string name="menu_save_screenshot">Save Screenshot</string>
+    <string name="menu_save_text_log">Save Text Log</string>
+    <string name="menu_toggle_dark_mode">Toggle Dark Mode</string>
+    <string name="menu_show_running_notification">Show Running Notification</string>
+    <string name="menu_compact_duplicates">Compact Duplicates</string>
+
+    <!-- Bottom action bar -->
+    <string name="label_permission">Permission</string>
+    <string name="label_access">Access</string>
+    <string name="label_clear">Clear</string>
+    <string name="sort_by_date_short">By Date</string>
+    <string name="sort_by_app_short">By App</string>
+
+    <!-- Content descriptions -->
+    <string name="cd_permission">Permission</string>
+    <string name="cd_notification_access">Notification Access</string>
+    <string name="cd_capture">Capture</string>
+    <string name="cd_clear_all">Clear All</string>
+    <string name="cd_delete">Delete</string>
 </resources>

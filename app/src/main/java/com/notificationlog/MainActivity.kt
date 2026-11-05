@@ -304,8 +304,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun showFileMenu(view: View) {
         val popup = PopupMenu(this, view)
-        popup.menu.add(0, R.id.menu_compact_duplicates, 0, "Compact Duplicates")
-        popup.menu.add(0, R.id.menu_file_exit, 1, "Exit")
+        popup.menu.add(0, R.id.menu_compact_duplicates, 0, getString(R.string.menu_compact_duplicates))
+        popup.menu.add(0, R.id.menu_file_exit, 1, getString(R.string.menu_exit))
         popup.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 R.id.menu_compact_duplicates -> {
@@ -339,8 +339,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun showSortMenu(view: View) {
         val popup = PopupMenu(this, view)
-        popup.menu.add(0, R.id.menu_sort_date, 0, "By Date")
-        popup.menu.add(0, R.id.menu_sort_app, 0, "By App")
+        popup.menu.add(0, R.id.menu_sort_date, 0, getString(R.string.sort_by_date_short))
+        popup.menu.add(0, R.id.menu_sort_app, 0, getString(R.string.sort_by_app_short))
         popup.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 R.id.menu_sort_date -> {
@@ -361,8 +361,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun showSaveMenu(view: View) {
         val popup = PopupMenu(this, view)
-        popup.menu.add(0, R.id.menu_save_screenshot, 0, "Save Screenshot")
-        popup.menu.add(0, R.id.menu_save_text, 0, "Save Text Log")
+        popup.menu.add(0, R.id.menu_save_screenshot, 0, getString(R.string.menu_save_screenshot))
+        popup.menu.add(0, R.id.menu_save_text, 0, getString(R.string.menu_save_text_log))
         popup.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 R.id.menu_save_screenshot -> {

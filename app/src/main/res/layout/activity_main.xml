@@ -33,7 +33,7 @@
                 android:id="@+id/menu_file"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="File"
+                android:text="@string/menu_file"
                 android:padding="8dp"
                 android:textColor="?attr/colorOnSurface"
                 android:background="?attr/selectableItemBackground" />
@@ -42,7 +42,7 @@
                 android:id="@+id/menu_sort"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Sort"
+                android:text="@string/menu_sort"
                 android:padding="8dp"
                 android:textColor="?attr/colorOnSurface"
                 android:background="?attr/selectableItemBackground" />
@@ -51,7 +51,7 @@
                 android:id="@+id/menu_save"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Save"
+                android:text="@string/menu_save"
                 android:padding="8dp"
                 android:textColor="?attr/colorOnSurface"
                 android:background="?attr/selectableItemBackground" />
@@ -69,7 +69,7 @@
                 android:id="@+id/menu_about"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="About"
+                android:text="@string/menu_about"
                 android:padding="8dp"
                 android:textColor="?attr/colorOnSurface"
                 android:background="?attr/selectableItemBackground" />
@@ -78,7 +78,7 @@
                 android:id="@+id/menu_exit"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Exit"
+                android:text="@string/menu_exit"
                 android:padding="8dp"
                 android:textColor="?attr/colorOnSurface"
                 android:background="?attr/selectableItemBackground" />
@@ -192,7 +192,7 @@
                     android:layout_height="48dp"
                     android:src="@android:drawable/ic_lock_lock"
                     android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="Permission"
+                    android:contentDescription="@string/cd_permission"
                     android:scaleType="centerInside"
                     app:tint="@android:color/holo_red_dark" />
 
@@ -200,7 +200,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="4dp"
-                    android:text="Permission"
+                    android:text="@string/label_permission"
                     android:textColor="?attr/colorOnSurface"
                     android:textSize="12sp" />
             </LinearLayout>
@@ -218,7 +218,7 @@
                     android:layout_height="48dp"
                     android:src="@android:drawable/ic_menu_view"
                     android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="Notification Access"
+                    android:contentDescription="@string/cd_notification_access"
                     android:scaleType="centerInside"
                     app:tint="@android:color/holo_red_dark" />
 
@@ -226,7 +226,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="4dp"
-                    android:text="Access"
+                    android:text="@string/label_access"
                     android:textColor="?attr/colorOnSurface"
                     android:textSize="12sp" />
             </LinearLayout>
@@ -244,7 +244,7 @@
                     android:layout_height="48dp"
                     android:src="@android:drawable/ic_media_play"
                     android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="Capture"
+                    android:contentDescription="@string/cd_capture"
                     android:scaleType="centerInside"
                     app:tint="@android:color/holo_green_dark" />
 
@@ -253,7 +253,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="4dp"
-                    android:text="Start"
+                    android:text="@string/capture_label_start"
                     android:textColor="?attr/colorOnSurface"
                     android:textSize="12sp" />
             </LinearLayout>
@@ -271,14 +271,14 @@
                     android:layout_height="48dp"
                     android:src="@android:drawable/ic_menu_delete"
                     android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="Clear All"
+                    android:contentDescription="@string/cd_clear_all"
                     android:scaleType="centerInside" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="4dp"
-                    android:text="Clear"
+                    android:text="@string/label_clear"
                     android:textColor="?attr/colorOnSurface"
                     android:textSize="12sp" />
             </LinearLayout>

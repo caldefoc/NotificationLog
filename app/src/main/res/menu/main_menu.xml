@@ -3,47 +3,47 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
     <item
         android:id="@+id/menu_sort_date"
-        android:title="Sort by Date"
+        android:title="@string/menu_sort_by_date"
         app:showAsAction="never" />
     <item
         android:id="@+id/menu_sort_app"
-        android:title="Sort by App"
+        android:title="@string/menu_sort_by_app"
         app:showAsAction="never" />
     <item
         android:id="@+id/menu_refresh"
-        android:title="Refresh"
+        android:title="@string/menu_refresh"
         app:showAsAction="never" />
     <item
         android:id="@+id/menu_save_screenshot"
-        android:title="Save Screenshot"
+        android:title="@string/menu_save_screenshot"
         app:showAsAction="never" />
     <item
         android:id="@+id/menu_save_text"
-        android:title="Save Text Log"
+        android:title="@string/menu_save_text_log"
         app:showAsAction="never" />
     <item
         android:id="@+id/menu_about"
-        android:title="About"
+        android:title="@string/menu_about"
         app:showAsAction="never" />
-        
+
     <!-- New Options -->
     <item
         android:id="@+id/menu_toggle_theme"
-        android:title="Toggle Dark Mode"
+        android:title="@string/menu_toggle_dark_mode"
         app:showAsAction="never" />
     <item
         android:id="@+id/menu_toggle_running_notif"
-        android:title="Show Running Notification"
+        android:title="@string/menu_show_running_notification"
         android:checkable="true"
         app:showAsAction="never" />
 
     <item
         android:id="@+id/menu_compact_duplicates"
-        android:title="Compact Duplicates"
+        android:title="@string/menu_compact_duplicates"
         app:showAsAction="never" />
 
     <item
         android:id="@+id/menu_file_exit"
-        android:title="Exit"
+        android:title="@string/menu_exit"
         app:showAsAction="never" />
 </menu>
