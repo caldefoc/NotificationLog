@@ -29,6 +29,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _compactResult = MutableLiveData<Int?>()
     val compactResult: LiveData<Int?> = _compactResult
 
+    /** Rows removed by "delete all matches", so the UI can report the number. */
+    private val _bulkDeleted = MutableLiveData<Int?>()
+    val bulkDeleted: LiveData<Int?> = _bulkDeleted
+
     /** Remembered so refreshes after a delete keep the user's chosen order. */
     private var currentSort: SortType = SortType.DATE
 
@@ -177,6 +181,31 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun consumeCompactResult() {
         _compactResult.value = null
+    }
+
+    /**
+     * Deletes every row matching the active filter. Uses the same LIKE pattern as the
+     * search queries, so the rows removed are exactly those the list was showing.
+     */
+    fun deleteMatching(query: String) {
+        if (query.isEmpty()) return
+        viewModelScope.launch(Dispatchers.IO + handler) {
+            try {
+                val removed = NotificationApp.repository.deleteMatching(likePattern(query))
+                withContext(Dispatchers.Main) {
+                    _bulkDeleted.value = removed
+                    loadNotifications(currentSort)
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    _errorMessage.value = "Error deleting notifications: ${e.message}"
+                }
+            }
+        }
+    }
+
+    fun consumeBulkDeleted() {
+        _bulkDeleted.value = null
     }
     
     fun clearError() {

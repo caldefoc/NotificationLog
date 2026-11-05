@@ -18,10 +18,21 @@
     <string name="disclosure_message">Notification Log saves the notifications your phone receives — app name, title, text and time — into a database on this device only. The app has no network permission, so nothing can be uploaded.\n\nNotification text can include messages, addresses and one-time codes, so treat this log as private. Clear removes everything; Capture stops recording; you can revoke access at any time in Settings → Notification access.\n\nYou will be asked to grant notification access next.</string>
     <string name="disclosure_accept">I understand</string>
     <string name="close_app">Exit</string>
-    <string name="compact_result">Compacted: %1$d duplicate rows removed</string>
+    <plurals name="compact_result">
+        <item quantity="one">Compacted: %1$d duplicate row removed</item>
+        <item quantity="other">Compacted: %1$d duplicate rows removed</item>
+    </plurals>
     <string name="search">Search</string>
     <string name="search_hint">Search app, title or text</string>
     <string name="search_clear">Clear search</string>
+    <string name="search_delete_matches">Delete matching notifications</string>
+    <string name="delete_matches_title">Delete matching notifications</string>
+    <string name="delete_matches_message">Delete all notifications matching “%1$s”? This cannot be undone.</string>
+    <plurals name="bulk_deleted">
+        <item quantity="one">Deleted %1$d notification</item>
+        <item quantity="other">Deleted %1$d notifications</item>
+    </plurals>
+    <string name="delete">Delete</string>
     <string name="capture_running">Capture Running</string>
     <string name="capture_stopped">Capture Stopped</string>
     <string name="capture_label_start">Start</string>

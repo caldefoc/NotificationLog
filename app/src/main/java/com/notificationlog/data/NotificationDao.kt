@@ -51,6 +51,17 @@ interface NotificationDao {
     @Delete
     suspend fun delete(notification: NotificationItem)
 
+    /**
+     * Deletes every row the search queries would return, so "delete all matches" removes
+     * exactly what the filtered list is showing. Returns the number of rows removed.
+     */
+    @Query(
+        "DELETE FROM notifications WHERE appName LIKE :pattern ESCAPE '\\' " +
+            "OR title LIKE :pattern ESCAPE '\\' OR content LIKE :pattern ESCAPE '\\' " +
+            "OR packageName LIKE :pattern ESCAPE '\\'"
+    )
+    suspend fun deleteMatching(pattern: String): Int
+
     @Query("DELETE FROM notifications")
     suspend fun deleteAll()
 }

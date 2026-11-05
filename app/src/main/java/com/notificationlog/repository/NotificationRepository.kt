@@ -37,6 +37,10 @@ class NotificationRepository(private val database: NotificationDatabase) {
         database.notificationDao().deleteAll()
     }
 
+    /** Removes every row the current filter matches; returns how many went. */
+    suspend fun deleteMatching(pattern: String) =
+        database.notificationDao().deleteMatching(pattern)
+
     /**
      * Collapses rows that share package, key, title and content into one row whose
      * updateCount is the number of occurrences. Returns the number of rows removed.

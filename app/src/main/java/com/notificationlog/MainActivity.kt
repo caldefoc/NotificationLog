@@ -259,6 +259,10 @@ class MainActivity : AppCompatActivity() {
             binding.searchInput.requestFocus()
         }
 
+        // Deleting the matches is destructive, so it stays hidden until there is a query
+        // to match on and always asks for confirmation first.
+        binding.searchDelete.setOnClickListener { showDeleteMatchingConfirmation() }
+
         binding.searchInput.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
@@ -266,6 +270,8 @@ class MainActivity : AppCompatActivity() {
                 // One database query per keystroke would be wasteful on a 30k-row log.
                 searchHandler.removeCallbacks(applySearch)
                 searchHandler.postDelayed(applySearch, SEARCH_DEBOUNCE_MS)
+                // No filter, nothing to delete in bulk.
+                binding.searchDelete.isVisible = !s.isNullOrBlank()
             }
         })
 
@@ -530,10 +536,21 @@ class MainActivity : AppCompatActivity() {
             if (removed != null) {
                 Toast.makeText(
                     this,
-                    getString(R.string.compact_result, removed),
+                    resources.getQuantityString(R.plurals.compact_result, removed, removed),
                     Toast.LENGTH_LONG
                 ).show()
                 viewModel.consumeCompactResult()
+            }
+        }
+
+        viewModel.bulkDeleted.observe(this) { removed ->
+            if (removed != null) {
+                Toast.makeText(
+                    this,
+                    resources.getQuantityString(R.plurals.bulk_deleted, removed, removed),
+                    Toast.LENGTH_SHORT
+                ).show()
+                viewModel.consumeBulkDeleted()
             }
         }
     }
@@ -660,6 +677,26 @@ class MainActivity : AppCompatActivity() {
                 viewModel.deleteNotification(item)
             }
             .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    /**
+     * Bulk delete for the current filter: the same rows the list is showing, so a search
+     * for one app can be cleared in one step instead of row by row.
+     */
+    private fun showDeleteMatchingConfirmation() {
+        val query = binding.searchInput.text.toString().trim()
+        if (query.isEmpty()) return
+
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.delete_matches_title))
+            .setMessage(getString(R.string.delete_matches_message, query))
+            .setPositiveButton(getString(R.string.delete)) { _, _ ->
+                // Passed explicitly: the filter is debounced, so the ViewModel's copy can
+                // still be the previous query for a moment after the user stops typing.
+                viewModel.deleteMatching(query)
+            }
+            .setNegativeButton(getString(R.string.cancel), null)
             .show()
     }
 
