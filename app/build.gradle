@@ -18,7 +18,7 @@ if (keystorePropertiesFile.exists()) {
 // ✅ Then android block
 android {
     namespace 'com.notificationlog'  // your actual package name
-    compileSdk 34  // or your target SDK
+    compileSdk 36
 
     signingConfigs {
         release {
@@ -34,7 +34,7 @@ android {
     defaultConfig {
         applicationId "com.notificationlog"
         minSdk 24  // adjust as needed
-        targetSdk 34
+        targetSdk 36
         versionCode 1
         versionName "1.0"
     }
@@ -77,7 +77,7 @@ dependencies {
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
 
     // ✅ Room Database (for storing notifications)
-    def roomVersion = "2.6.1"
+    def roomVersion = "2.8.5"
 
     implementation "androidx.room:room-runtime:$roomVersion"
     implementation "androidx.room:room-ktx:$roomVersion"
