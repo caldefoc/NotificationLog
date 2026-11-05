@@ -1,1 +1,2 @@
-fastlane/** text eol=lf  
+*.png binary
+fastlane/metadata/android/**/*.txt text eol=lf
