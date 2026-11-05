@@ -45,6 +45,7 @@ class NotificationListener : NotificationListenerService() {
 
     override fun onListenerConnected() {
         super.onListenerConnected()
+        ListenerConnection.setConnected(true)
         Log.d("NotificationListener", "Listener connected")
         // Cancel any previous warning notification
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -53,6 +54,7 @@ class NotificationListener : NotificationListenerService() {
 
     override fun onListenerDisconnected() {
         super.onListenerDisconnected()
+        ListenerConnection.setConnected(false)
         Log.w("NotificationListener", "Listener disconnected — notification access may have been revoked")
 
         // Try to request rebind on API 33+ (Android 13+)
@@ -202,6 +204,7 @@ class NotificationListener : NotificationListenerService() {
 
     override fun onDestroy() {
         super.onDestroy()
+        ListenerConnection.setConnected(false)
         job.cancel()
     }
 }

@@ -1,0 +1,7 @@
+The status line now tells the truth about capture.
+
+Access granted and the listener actually running are two different things. After an install on Xiaomi/HyperOS the system can keep the permission while refusing to connect the service, and the app used to report "Capture Running" with nothing being recorded. The status line now shows "Not connected - tap to retry" in that case, and the notification-access icon turns red.
+
+Capture also recovers by itself: the app asks the system to rebind whenever it finds itself permitted but unbound, so an update no longer means opening system settings. Tapping the status line retries on demand and, if the bind is still refused, explains how to fix it.
+
+No other behaviour changed. The version number moves to 1.2 so this build can be offered as an update.

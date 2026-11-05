@@ -1,14 +1,18 @@
 package com.notificationlog
 
 import android.app.Application
+import android.content.ComponentName
+import android.service.notification.NotificationListenerService
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.Observer
 import androidx.lifecycle.viewModelScope
 import android.provider.Settings  // ✅ Correct
 import com.notificationlog.model.NotificationItem
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -16,6 +20,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     
     private val _serviceStatus = MutableLiveData<Boolean>(false)
     val serviceStatus: LiveData<Boolean> = _serviceStatus
+
+    /**
+     * Access granted is not the same as the listener being alive: an OEM can grant the
+     * former and refuse the bind, which is exactly what MIUI does after an install.
+     * The UI needs all three states to avoid claiming "Capture Running" while deaf.
+     */
+    private val _captureState = MutableLiveData(CaptureState.NOT_GRANTED)
+    val captureState: LiveData<CaptureState> = _captureState
     
     private val _notificationCount = MutableLiveData<Int>(0)
     val notificationCount: LiveData<Int> = _notificationCount
@@ -50,23 +62,65 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _errorMessage.postValue("Unexpected error: ${throwable.message}")
     }
     
+    /** Recomputes [captureState] whenever the service connects or drops. */
+    private val connectionObserver = Observer<Boolean> { refreshCaptureState() }
+
     init {
         checkNotificationServiceStatus()
+        ListenerConnection.connected.observeForever(connectionObserver)
     }
-    
+
+    override fun onCleared() {
+        ListenerConnection.connected.removeObserver(connectionObserver)
+        super.onCleared()
+    }
+
     fun checkNotificationServiceStatus() {
+        refreshCaptureState()
+    }
+
+    /** Re-reads the setting and combines it with the live bind state. */
+    fun refreshCaptureState() {
         viewModelScope.launch(handler) {
             try {
-                val isEnabled = withContext(Dispatchers.IO) {
+                val granted = withContext(Dispatchers.IO) {
                     isNotificationServiceEnabled()
                 }
-                _serviceStatus.value = isEnabled
+                _serviceStatus.value = granted
+                _captureState.value = when {
+                    !granted -> CaptureState.NOT_GRANTED
+                    ListenerConnection.isConnected -> CaptureState.CONNECTED
+                    else -> CaptureState.NOT_CONNECTED
+                }
             } catch (e: Exception) {
                 _errorMessage.value = "Error checking service status: ${e.message}"
             }
         }
     }
-    
+
+    /**
+     * Asks the system to rebind the listener. This is the only programmatic lever: the
+     * setting is already granted, so re-writing it does nothing (verified on device —
+     * no rebind is even attempted), while requestRebind goes through the notification
+     * manager. It can still be refused, which is why the state is re-read afterwards
+     * rather than assumed.
+     */
+    fun reconnect() {
+        val component = ComponentName(getApplication(), NotificationListener::class.java)
+        viewModelScope.launch(handler) {
+            withContext(Dispatchers.IO) {
+                try {
+                    NotificationListenerService.requestRebind(component)
+                } catch (e: Exception) {
+                    _errorMessage.postValue("Could not request a rebind: ${e.message}")
+                }
+            }
+            // The bind completes asynchronously; give the system a moment before judging.
+            delay(2500)
+            refreshCaptureState()
+        }
+    }
+
     private fun isNotificationServiceEnabled(): Boolean {
         val context = getApplication<Application>()
         val flat = Settings.Secure.getString(
@@ -216,4 +270,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 enum class SortType {
     DATE,
     APP
+}
+
+enum class CaptureState {
+    /** Notification access was never granted, or has been revoked. */
+    NOT_GRANTED,
+
+    /** Access is granted but no listener is bound, so nothing is being captured. */
+    NOT_CONNECTED,
+
+    /** Access granted and the service is bound. */
+    CONNECTED
 }

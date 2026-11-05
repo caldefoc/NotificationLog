@@ -37,6 +37,13 @@
     <string name="capture_stopped">Capture Stopped</string>
     <string name="capture_label_start">Start</string>
     <string name="capture_label_stop">Stop</string>
+    <string name="capture_not_connected">Not connected — tap to retry</string>
+    <string name="capture_not_connected_hint">Access is granted but the listener is not running</string>
+    <string name="capture_reconnected">Capture reconnected</string>
+    <string name="reconnect_failed_title">Listener not connected</string>
+    <string name="reconnect_failed_message">Notification access is granted, but Android has not connected the listener, so nothing is being recorded.\n\nThe usual cause on Xiaomi/HyperOS is Autostart being disabled for this app. Open the app\'s settings page and turn Autostart on, then try again — or simply reopen Notification Log.</string>
+    <string name="reconnect_retry">Try again</string>
+    <string name="open_app_settings">App settings</string>
 
     <!-- Menu bar -->
     <string name="menu_file">File</string>

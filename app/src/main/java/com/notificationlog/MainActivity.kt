@@ -63,6 +63,9 @@ class MainActivity : AppCompatActivity() {
     private var captureEnabled: Boolean = true
     private var accessDialog: AlertDialog? = null
     private var lastServiceStatus: Boolean? = null
+
+    /** One silent rebind per app launch when the listener is permitted but not bound. */
+    private var autoRebindAttempted = false
     private val searchHandler = Handler(Looper.getMainLooper())
     private val applySearch = Runnable { viewModel.setQuery(binding.searchInput.text.toString()) }
     private val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
@@ -208,6 +211,12 @@ class MainActivity : AppCompatActivity() {
             ContextCompat.RECEIVER_NOT_EXPORTED
         )
         viewModel.checkNotificationServiceStatus()
+        // Coming back from the Autostart screen with the state unchanged emits nothing
+        // on the LiveData, so retry explicitly. One attempt per foreground visit.
+        if (viewModel.captureState.value == CaptureState.NOT_CONNECTED && !autoRebindAttempted) {
+            autoRebindAttempted = true
+            requestReconnect(reportResult = false)
+        }
         viewModel.loadNotifications(currentSort)
         updateServiceStatusText()
         updateButtonStates()
@@ -218,6 +227,7 @@ class MainActivity : AppCompatActivity() {
         super.onPause()
         unregisterReceiver(notificationsUpdatedReceiver)
         unregisterReceiver(listenerDisconnectedReceiver)
+        autoRebindAttempted = false
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -232,6 +242,9 @@ class MainActivity : AppCompatActivity() {
         private const val PREF_DISCLOSURE_ACCEPTED = "disclosure_accepted"
         /** Typing sends one query per character without this. */
         private const val SEARCH_DEBOUNCE_MS = 200L
+
+        /** Long enough for the system to complete a bind before the result is judged. */
+        private const val RECONNECT_CHECK_DELAY_MS = 3500L
     }
 
     private fun setupRecyclerView() {
@@ -406,20 +419,91 @@ class MainActivity : AppCompatActivity() {
             toggleCapture()
         }
 
+        // Tapping the status line retries the bind — only meaningful in NOT_CONNECTED,
+        // which is exactly when applyCaptureState makes it clickable.
+        binding.tvServiceStatus.setOnClickListener {
+            if (viewModel.captureState.value == CaptureState.NOT_CONNECTED) {
+                requestReconnect(reportResult = true)
+            }
+        }
+
         updateCaptureButton()
     }
     
     private fun updateServiceStatusText() {
-        val isRunning = isNotificationServiceEnabled()
-        binding.tvServiceStatus.text = if (isRunning) {
-            if (captureEnabled) getString(R.string.capture_running) else getString(R.string.capture_stopped)
-        } else {
-            getString(R.string.service_stopped)
+        applyCaptureState(viewModel.captureState.value ?: CaptureState.NOT_GRANTED)
+    }
+
+    /**
+     * Renders the three states. NOT_CONNECTED is the one that used to be invisible:
+     * access granted, system refused the bind, so the app said "Capture Running" while
+     * writing nothing. It is also the only state the user can fix from here, hence the
+     * click-to-retry affordance.
+     */
+    private fun applyCaptureState(state: CaptureState) {
+        binding.tvServiceStatus.setText(
+            when (state) {
+                CaptureState.CONNECTED ->
+                    if (captureEnabled) R.string.capture_running else R.string.capture_stopped
+                CaptureState.NOT_CONNECTED -> R.string.capture_not_connected
+                CaptureState.NOT_GRANTED -> R.string.service_stopped
+            }
+        )
+
+        val reconnectable = state == CaptureState.NOT_CONNECTED
+        binding.tvServiceStatus.isClickable = reconnectable
+        TooltipCompat.setTooltipText(
+            binding.tvServiceStatus,
+            if (reconnectable) getString(R.string.capture_not_connected_hint) else null
+        )
+
+        if (reconnectable && !autoRebindAttempted) {
+            // Access, service and app were all fine until the last install; one quiet
+            // rebind usually restores capture without the user doing anything.
+            autoRebindAttempted = true
+            requestReconnect(reportResult = false)
         }
+
+        checkRunningNotification()
+    }
+
+    private fun requestReconnect(reportResult: Boolean) {
+        viewModel.reconnect()
+        binding.tvServiceStatus.postDelayed({
+            when (viewModel.captureState.value) {
+                CaptureState.CONNECTED ->
+                    if (reportResult) {
+                        Toast.makeText(this, R.string.capture_reconnected, Toast.LENGTH_SHORT).show()
+                    }
+                CaptureState.NOT_CONNECTED ->
+                    if (reportResult) showReconnectFailedDialog()
+                else -> Unit
+            }
+        }, RECONNECT_CHECK_DELAY_MS)
+    }
+
+    private fun showReconnectFailedDialog() {
+        if (isFinishing || isDestroyed) return
+        AlertDialog.Builder(this)
+            .setTitle(R.string.reconnect_failed_title)
+            .setMessage(R.string.reconnect_failed_message)
+            .setPositiveButton(R.string.open_app_settings) { _, _ ->
+                startActivity(
+                    Intent(
+                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.parse("package:$packageName")
+                    )
+                )
+            }
+            .setNeutralButton(R.string.reconnect_retry) { _, _ -> requestReconnect(reportResult = true) }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     private fun updateButtonStates() {
-        val isServiceRunning = isNotificationServiceEnabled()
+        // Access granted but listener unbound means the app is deaf, so the indicator
+        // follows the bind state, not the permission.
+        val isServiceRunning = viewModel.captureState.value == CaptureState.CONNECTED
         val hasPermission = hasNotificationPermission()
         val hasNotifications = (viewModel.notifications.value?.size ?: 0) > 0
 
@@ -505,6 +589,11 @@ class MainActivity : AppCompatActivity() {
             lastServiceStatus = isRunning
         }
         
+        viewModel.captureState.observe(this) { state ->
+            applyCaptureState(state)
+            updateButtonStates()
+        }
+
         viewModel.notificationCount.observe(this) { count ->
             binding.tvNotificationCount.text = getString(R.string.notification_count, count)
             updateButtonStates()
@@ -918,11 +1007,18 @@ class MainActivity : AppCompatActivity() {
         }
     }
     
+    /** Read from the package instead of a literal, so About cannot go stale again. */
+    private fun appVersionName(): String = try {
+        packageManager.getPackageInfo(packageName, 0).versionName ?: "?"
+    } catch (e: Exception) {
+        "?"
+    }
+
     private fun showAboutDialog() {
         AlertDialog.Builder(this)
             .setTitle("About")
             .setMessage(
-                "Notification Log\nVersion 1.0\n\n" +
+                "Notification Log\nVersion ${appVersionName()}\n\n" +
                     "Captures and displays your device notifications.\n\n" +
                     "© 2026 Caldefoc\nwww.caldefoc.com"
             )
@@ -947,7 +1043,8 @@ class MainActivity : AppCompatActivity() {
     
     private fun checkRunningNotification() {
         val show = prefs.getBoolean("show_running_notif", false)
-        val isRunning = isNotificationServiceEnabled()
+        // The ongoing "capture is running" card must not lie either.
+        val isRunning = ListenerConnection.isConnected
         val capture = prefs.getBoolean("capture_enabled", true)
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         
