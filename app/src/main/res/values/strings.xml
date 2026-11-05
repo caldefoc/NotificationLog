@@ -23,4 +23,11 @@
     <string name="disclosure_accept">I understand</string>
     <string name="close_app">Exit</string>
     <string name="compact_result">Compacted: %1$d duplicate rows removed</string>
+    <string name="search">Search</string>
+    <string name="search_hint">Search app, title or text</string>
+    <string name="search_clear">Clear search</string>
+    <string name="capture_running">Capture Running</string>
+    <string name="capture_stopped">Capture Stopped</string>
+    <string name="capture_label_start">Start</string>
+    <string name="capture_label_stop">Stop</string>
 </resources>

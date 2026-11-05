@@ -32,6 +32,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     /** Remembered so refreshes after a delete keep the user's chosen order. */
     private var currentSort: SortType = SortType.DATE
 
+    /**
+     * Remembered for the same reason: a notification arriving while a search is open
+     * used to reload the full list and silently drop the filter.
+     */
+    private var currentQuery: String = ""
+
+    /** The filter currently applied, so the UI can rebuild its own state after rotation. */
+    val filterQuery: String
+        get() = currentQuery
+
     private val handler = CoroutineExceptionHandler { _, throwable ->
         _errorMessage.postValue("Unexpected error: ${throwable.message}")
     }
@@ -64,12 +74,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     
     fun loadNotifications(sortType: SortType) {
         currentSort = sortType
+        val query = currentQuery
         viewModelScope.launch(Dispatchers.IO + handler) {
             try {
                 val repo = NotificationApp.repository
-                val items = when (sortType) {
-                    SortType.DATE -> repo.getNotificationsSortedByDate()
-                    SortType.APP -> repo.getNotificationsSortedByApp()
+                val items = if (query.isEmpty()) {
+                    when (sortType) {
+                        SortType.DATE -> repo.getNotificationsSortedByDate()
+                        SortType.APP -> repo.getNotificationsSortedByApp()
+                    }
+                } else {
+                    val pattern = likePattern(query)
+                    when (sortType) {
+                        SortType.DATE -> repo.searchByDate(pattern)
+                        SortType.APP -> repo.searchByApp(pattern)
+                    }
                 }
                 withContext(Dispatchers.Main) {
                     _notifications.value = items
@@ -81,6 +100,26 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
         }
+    }
+
+    /** Applies a filter, or clears it when the query is blank. */
+    fun setQuery(query: String) {
+        val trimmed = query.trim()
+        if (trimmed == currentQuery) return
+        currentQuery = trimmed
+        loadNotifications(currentSort)
+    }
+
+    /**
+     * Wraps the term for LIKE and escapes its wildcards, so "%" and "_" are searched
+     * for literally instead of matching every row.
+     */
+    private fun likePattern(query: String): String {
+        val escaped = query
+            .replace("\\", "\\\\")
+            .replace("%", "\\%")
+            .replace("_", "\\_")
+        return "%$escaped%"
     }
 
     fun deleteNotification(item: NotificationItem) {

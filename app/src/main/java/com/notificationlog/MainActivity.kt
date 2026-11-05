@@ -16,14 +16,20 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.os.Handler
+import android.os.Looper
 import android.provider.MediaStore
 import android.provider.Settings
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.view.inputmethod.InputMethodManager
 import android.widget.PopupMenu
 import android.widget.Toast
 import androidx.activity.SystemBarStyle
+import androidx.activity.addCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
@@ -33,6 +39,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.isVisible
 import androidx.core.view.updatePadding
 import androidx.appcompat.widget.TooltipCompat
 import androidx.lifecycle.ViewModelProvider
@@ -56,6 +63,8 @@ class MainActivity : AppCompatActivity() {
     private var captureEnabled: Boolean = true
     private var accessDialog: AlertDialog? = null
     private var lastServiceStatus: Boolean? = null
+    private val searchHandler = Handler(Looper.getMainLooper())
+    private val applySearch = Runnable { viewModel.setQuery(binding.searchInput.text.toString()) }
     private val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
     private val listenerDisconnectedReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -120,6 +129,7 @@ class MainActivity : AppCompatActivity() {
 
         setupRecyclerView()
         setupMenuBar()
+        setupSearch()
         setupBottomButtons()
         // First launch shows the data-handling disclosure instead of the access prompt;
         // the disclosure hands off to checkPermissions() once acknowledged.
@@ -129,7 +139,24 @@ class MainActivity : AppCompatActivity() {
             showDisclosure()
         }
         observeViewModel()
-        
+
+        // The ViewModel outlives a rotation, so an active filter has to come back with
+        // the row that shows it; otherwise the list looks incomplete for no visible reason.
+        viewModel.filterQuery.takeIf { it.isNotEmpty() }?.let { query ->
+            binding.searchContainer.isVisible = true
+            binding.searchInput.setText(query)
+        }
+
+        // Back closes the search row rather than leaving the app with a filter applied.
+        onBackPressedDispatcher.addCallback(this) {
+            if (binding.searchContainer.isVisible) {
+                hideSearch()
+            } else {
+                isEnabled = false
+                onBackPressedDispatcher.onBackPressed()
+            }
+        }
+
         createNotificationChannel()
         createWarningNotificationChannel()
         
@@ -167,27 +194,20 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(
-                notificationsUpdatedReceiver,
-                IntentFilter("com.notificationlog.NOTIFICATIONS_UPDATED"),
-                Context.RECEIVER_NOT_EXPORTED
-            )
-            registerReceiver(
-                listenerDisconnectedReceiver,
-                IntentFilter("com.notificationlog.LISTENER_DISCONNECTED"),
-                Context.RECEIVER_NOT_EXPORTED
-            )
-        } else {
-            registerReceiver(
-                notificationsUpdatedReceiver,
-                IntentFilter("com.notificationlog.NOTIFICATIONS_UPDATED")
-            )
-            registerReceiver(
-                listenerDisconnectedReceiver,
-                IntentFilter("com.notificationlog.LISTENER_DISCONNECTED")
-            )
-        }
+        // ContextCompat carries the API 33 flag on older releases. Both broadcasts are
+        // only ever sent by this app, so RECEIVER_NOT_EXPORTED is the correct scope.
+        ContextCompat.registerReceiver(
+            this,
+            notificationsUpdatedReceiver,
+            IntentFilter("com.notificationlog.NOTIFICATIONS_UPDATED"),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+        ContextCompat.registerReceiver(
+            this,
+            listenerDisconnectedReceiver,
+            IntentFilter("com.notificationlog.LISTENER_DISCONNECTED"),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
         viewModel.checkNotificationServiceStatus()
         viewModel.loadNotifications(currentSort)
         updateServiceStatusText()
@@ -205,11 +225,14 @@ class MainActivity : AppCompatActivity() {
         super.onSaveInstanceState(outState)
         // Without this the chosen sort silently reverted to DATE on rotation.
         outState.putString(STATE_SORT, currentSort.name)
+        // The search filter itself lives in the ViewModel, which survives rotation.
     }
 
     companion object {
         private const val STATE_SORT = "state_sort"
         private const val PREF_DISCLOSURE_ACCEPTED = "disclosure_accepted"
+        /** Typing sends one query per character without this. */
+        private const val SEARCH_DEBOUNCE_MS = 200L
     }
 
     private fun setupRecyclerView() {
@@ -227,6 +250,56 @@ class MainActivity : AppCompatActivity() {
         binding.menuSave.setOnClickListener { showSaveMenu(it) }
         binding.menuAbout.setOnClickListener { showAboutDialog() }
         binding.menuExit.setOnClickListener { showExitConfirmation() }
+    }
+
+    private fun setupSearch() {
+        binding.menuSearch.setOnClickListener { toggleSearch() }
+
+        binding.searchClear.setOnClickListener {
+            binding.searchInput.setText("")
+            binding.searchInput.requestFocus()
+        }
+
+        binding.searchInput.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
+            override fun afterTextChanged(s: Editable?) {
+                // One database query per keystroke would be wasteful on a 30k-row log.
+                searchHandler.removeCallbacks(applySearch)
+                searchHandler.postDelayed(applySearch, SEARCH_DEBOUNCE_MS)
+            }
+        })
+
+        binding.searchInput.setOnEditorActionListener { _, _, _ ->
+            // Commit immediately and drop the keyboard; the filter itself is already live.
+            searchHandler.removeCallbacks(applySearch)
+            applySearch.run()
+            hideKeyboard()
+            true
+        }
+    }
+
+    private fun toggleSearch() {
+        if (binding.searchContainer.isVisible) hideSearch() else showSearch()
+    }
+
+    private fun showSearch() {
+        binding.searchContainer.isVisible = true
+        binding.searchInput.requestFocus()
+        getSystemService(InputMethodManager::class.java)
+            ?.showSoftInput(binding.searchInput, InputMethodManager.SHOW_IMPLICIT)
+    }
+
+    private fun hideSearch() {
+        binding.searchContainer.isVisible = false
+        hideKeyboard()
+        // Clearing the field clears the filter too, through the TextWatcher above.
+        binding.searchInput.setText("")
+    }
+
+    private fun hideKeyboard() {
+        getSystemService(InputMethodManager::class.java)
+            ?.hideSoftInputFromWindow(binding.searchInput.windowToken, 0)
     }
 
     private fun showFileMenu(view: View) {
@@ -334,7 +407,7 @@ class MainActivity : AppCompatActivity() {
     private fun updateServiceStatusText() {
         val isRunning = isNotificationServiceEnabled()
         binding.tvServiceStatus.text = if (isRunning) {
-            if (captureEnabled) "Capture Running" else "Capture Stopped"
+            if (captureEnabled) getString(R.string.capture_running) else getString(R.string.capture_stopped)
         } else {
             getString(R.string.service_stopped)
         }
@@ -379,12 +452,12 @@ class MainActivity : AppCompatActivity() {
         if (captureEnabled) {
             binding.btnCapture.setImageResource(android.R.drawable.ic_media_pause)
             binding.btnCapture.setColorFilter(ContextCompat.getColor(this, android.R.color.holo_green_dark))
-            binding.tvCaptureLabel.text = "Stop"
+            binding.tvCaptureLabel.text = getString(R.string.capture_label_stop)
             TooltipCompat.setTooltipText(binding.btnCapture, "Stop Capture")
         } else {
             binding.btnCapture.setImageResource(android.R.drawable.ic_media_play)
             binding.btnCapture.setColorFilter(ContextCompat.getColor(this, android.R.color.holo_red_dark))
-            binding.tvCaptureLabel.text = "Start"
+            binding.tvCaptureLabel.text = getString(R.string.capture_label_start)
             TooltipCompat.setTooltipText(binding.btnCapture, "Start Capture")
         }
     }
@@ -812,7 +885,11 @@ class MainActivity : AppCompatActivity() {
     private fun showAboutDialog() {
         AlertDialog.Builder(this)
             .setTitle("About")
-            .setMessage("Notification Log\nVersion 1.0\n\nCaptures and displays your device notifications.")
+            .setMessage(
+                "Notification Log\nVersion 1.0\n\n" +
+                    "Captures and displays your device notifications.\n\n" +
+                    "© 2026 Caldefoc\nwww.caldefoc.com"
+            )
             .setPositiveButton(android.R.string.ok, null)
             .show()
     }

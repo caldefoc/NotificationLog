@@ -17,6 +17,27 @@ interface NotificationDao {
     @Query("SELECT * FROM notifications ORDER BY appName ASC, timestamp DESC, id DESC")
     suspend fun getNotificationsSortedByApp(): List<NotificationItem>
 
+    /**
+     * Free-text search over app, title and body. The pattern arrives already wrapped in
+     * % and with LIKE metacharacters escaped, so typing "%" searches for a percent sign
+     * rather than matching the whole table.
+     */
+    @Query(
+        "SELECT * FROM notifications WHERE appName LIKE :pattern ESCAPE '\\' " +
+            "OR title LIKE :pattern ESCAPE '\\' OR content LIKE :pattern ESCAPE '\\' " +
+            "OR packageName LIKE :pattern ESCAPE '\\' " +
+            "ORDER BY timestamp DESC, id DESC"
+    )
+    suspend fun searchByDate(pattern: String): List<NotificationItem>
+
+    @Query(
+        "SELECT * FROM notifications WHERE appName LIKE :pattern ESCAPE '\\' " +
+            "OR title LIKE :pattern ESCAPE '\\' OR content LIKE :pattern ESCAPE '\\' " +
+            "OR packageName LIKE :pattern ESCAPE '\\' " +
+            "ORDER BY appName ASC, timestamp DESC, id DESC"
+    )
+    suspend fun searchByApp(pattern: String): List<NotificationItem>
+
     /** Newest row for a notification key, used to detect re-posts of the same content. */
     @Query("SELECT * FROM notifications WHERE key = :key ORDER BY timestamp DESC, id DESC LIMIT 1")
     suspend fun latestForKey(key: String): NotificationItem?

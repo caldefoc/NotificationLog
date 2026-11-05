@@ -57,7 +57,7 @@
             android:src="@android:drawable/ic_menu_delete"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="Delete"
-            android:tint="@android:color/darker_gray"
+            app:tint="@android:color/darker_gray"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/textDate"
             app:layout_constraintBottom_toBottomOf="parent" />

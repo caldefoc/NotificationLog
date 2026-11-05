@@ -15,6 +15,10 @@ class NotificationRepository(private val database: NotificationDatabase) {
     suspend fun getNotificationsSortedByApp() =
         database.notificationDao().getNotificationsSortedByApp()
 
+    suspend fun searchByDate(pattern: String) = database.notificationDao().searchByDate(pattern)
+
+    suspend fun searchByApp(pattern: String) = database.notificationDao().searchByApp(pattern)
+
     suspend fun latestForKey(key: String) = database.notificationDao().latestForKey(key)
 
     suspend fun insert(notification: NotificationItem) {
