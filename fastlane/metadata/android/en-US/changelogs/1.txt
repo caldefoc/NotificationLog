@@ -1,0 +1,5 @@
+Initial release.
+
+Captures notifications through a notification listener and stores them in a local database. The list can be sorted by date or app, searched, exported to a text log or a screenshot, compacted to remove repeated duplicates, and cleared in bulk.
+
+No network permission is requested, and there is no account, sync or analytics of any kind.

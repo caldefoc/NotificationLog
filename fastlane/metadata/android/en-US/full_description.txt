@@ -1,0 +1,20 @@
+Notification Log keeps a record of the notifications your phone receives, including the ones you dismiss before reading them.
+
+Everything stays on the device. The app has no network permission at all: no account, no sync, no analytics, no ads.
+
+**What it does**
+
+- Captures each notification as it arrives: app, title, body and timestamp
+- Keeps a list you can sort by date or by app
+- Search across the whole log, and delete every row matching a search in one go
+- Save the list as a text log, or save it as a screenshot
+- Compact duplicates that repeat with identical content
+- Works offline and needs no setup beyond granting notification access
+
+**Privacy**
+
+Notifications often carry sensitive information, so the app is deliberately closed off. The database is a local SQLite file, nothing is uploaded anywhere, and there is no code path that opens a network connection. Android backup is disabled in the manifest, so the log is not copied off the device by the system either.
+
+**Free software**
+
+Published under the GNU General Public License v3.0. The source code is available at https://github.com/caldefoc/NotificationLog
