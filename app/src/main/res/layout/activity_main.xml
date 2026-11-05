@@ -175,15 +175,17 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center"
+            android:baselineAligned="false"
             android:padding="8dp"
             android:background="?attr/colorSurface"
             app:layout_constraintBottom_toBottomOf="parent">
 
             <LinearLayout
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center"
                 android:layout_margin="8dp">
 
                 <ImageButton
@@ -199,17 +201,18 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
+                    android:layout_marginTop="2dp"
                     android:text="@string/label_permission"
                     android:textColor="?attr/colorOnSurface"
                     android:textSize="12sp" />
             </LinearLayout>
 
             <LinearLayout
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center"
                 android:layout_margin="8dp">
 
                 <ImageButton
@@ -225,17 +228,18 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
+                    android:layout_marginTop="2dp"
                     android:text="@string/label_access"
                     android:textColor="?attr/colorOnSurface"
                     android:textSize="12sp" />
             </LinearLayout>
 
             <LinearLayout
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center"
                 android:layout_margin="8dp">
 
                 <ImageButton
@@ -252,17 +256,18 @@
                     android:id="@+id/tvCaptureLabel"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
+                    android:layout_marginTop="2dp"
                     android:text="@string/capture_label_start"
                     android:textColor="?attr/colorOnSurface"
                     android:textSize="12sp" />
             </LinearLayout>
 
             <LinearLayout
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center"
                 android:layout_margin="8dp">
 
                 <ImageButton
@@ -277,7 +282,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
+                    android:layout_marginTop="2dp"
                     android:text="@string/label_clear"
                     android:textColor="?attr/colorOnSurface"
                     android:textSize="12sp" />

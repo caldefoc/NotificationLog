@@ -166,14 +166,19 @@ class MainActivity : AppCompatActivity() {
     /**
      * With edge-to-edge the window no longer shrinks to avoid the system bars, so the
      * padding has to come from the insets. The toolbar keeps its own colour behind the
-     * status bar; the button row keeps its background behind the navigation bar.
+     * status bar.
+     *
+     * The bottom inset goes on the root, not on the button row: giving the row the
+     * inset as padding made it wrap to content + inset but still lay its children out
+     * from the top, so the icons and labels slid under the navigation bar and the last
+     * column was clipped at the screen edge.
      */
     private fun applySystemBarInsets() {
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
             val bars = insets.getInsets(
                 WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
             )
-            view.setPadding(bars.left, 0, bars.right, 0)
+            view.setPadding(bars.left, 0, bars.right, bars.bottom)
             insets
         }
 
@@ -182,12 +187,6 @@ class MainActivity : AppCompatActivity() {
                 WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.displayCutout()
             ).top
             view.updatePadding(top = top)
-            insets
-        }
-
-        ViewCompat.setOnApplyWindowInsetsListener(binding.buttonContainer) { view, insets ->
-            val bottom = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
-            view.updatePadding(bottom = bottom)
             insets
         }
     }
