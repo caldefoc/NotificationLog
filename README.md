@@ -20,23 +20,24 @@ Started January 2026 as a small utility and pushed in April; it's the earliest o
 | | |
 |---|---|
 | Language | Kotlin (no Compose — classic Views + DataBinding) |
-| Build | Gradle 8.4, AGP 8.4.0, Kotlin 1.9.24, JDK 21 |
-| SDK | minSdk 24, targetSdk 34, compileSdk 34 |
-| Storage | Room 2.6.1 (KSP), schema exported to `app/schemas` |
+| Build | Gradle 8.14.3, AGP 8.13.2, Kotlin 2.2.21, KSP 2.2.21-2.0.5, JDK 21 |
+| SDK | minSdk 24, targetSdk 36, compileSdk 36 |
+| Storage | Room 2.8.5 (KSP), schema exported to `app/schemas` |
 | Architecture | Activity + ViewModel + Repository + DAO, `viewModelScope` for coroutines |
 | Signing | `keystore.properties` at the repo root, read by `app/build.gradle` — **gitignored, never committed** |
 
 ## Permissions — why it needs them
 
-Two are genuinely required and one is an oddity:
+Two, and only two:
 
 | Permission | Why |
 |---|---|
 | Notification access (`BIND_NOTIFICATION_LISTENER_SERVICE`) | The whole point: the system only lets a listener service read notifications if the user grants it in Settings |
 | `POST_NOTIFICATIONS` (API 33+) | The app posts its own status/warning notification |
-| `INTERNET`, `ACCESS_NETWORK_STATE`, and `usesCleartextTraffic="true"` | **Not needed by any code path found.** Nothing in the app makes a network request. This looks like leftover template configuration and is worth removing before any public release |
 
-The rationale is simple: a notification archiver with no network permission at all is a much stronger privacy claim than one that merely says it doesn't upload anything.
+There is deliberately **no `INTERNET` permission and no `ACCESS_NETWORK_STATE`**. The manifest declares neither, so the app cannot make a network request even by accident — a far stronger privacy claim than promising not to upload anything.
+
+The database does not leave the device either: `allowBackup="false"` with `dataExtractionRules` excluding both cloud backup and device transfer, so a new phone starts empty.
 
 ## Building
 
@@ -96,8 +97,18 @@ scripts/validate-jdk.gradle     JDK 21 guard
 
 ## Known gaps
 
-- **Signing is wired but not done.** The `release` build type expects `keystore.properties`; nothing is committed, so release builds are unproven.
-- **Unused network permissions** (see above) — should be stripped.
 - **No tests** of any kind, and no CI.
-- Notification bodies are captured verbatim, which means OTP codes and private messages land in the database. There's no filtering by app and no encryption at rest; on a rooted or backed-up device that database is readable. `android:allowBackup="true"` means it is included in cloud backups by default.
+- **No search.** The list can be sorted and exported, but not filtered by text or by app.
+- Notification bodies are captured verbatim, which means OTP codes and private messages land in the database. There is no filtering by app and no encryption at rest, so the file is readable by root, or by anyone who can read app-private storage on an unlocked device. Cloud backup and device transfer are disabled, so it is at least not copied off the device.
 - Sorting and export are basic — the text log is a dump of the current list, not a formatted archive.
+- Release builds need a local `keystore.properties`; the signing key is not in the repository, so a fresh clone can only build debug.
+
+## Licence
+
+Copyright (C) 2026 CaldeFoc
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, **version 3 only** — not "or any later version".
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. The full text is in [LICENSE](LICENSE).
+
+The licence covers the source code. It grants no rights to the CaldeFoc name or marks.
