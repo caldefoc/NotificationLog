@@ -7,6 +7,19 @@
          be indefensible on a store listing. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- Android 11 hides other packages unless they are declared here. Without
+         this, getApplicationInfo() throws for the app that sent a notification
+         and the list falls back to raw package names like
+         "dev.imranr.obtainium.fdroid" instead of "Obtainium". Matching on the
+         launcher intent keeps the list readable without asking for
+         QUERY_ALL_PACKAGES, which store reviewers treat as sensitive. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
+
     <application
         android:name=".NotificationApp"
         android:allowBackup="false"

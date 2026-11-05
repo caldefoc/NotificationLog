@@ -1,0 +1,5 @@
+App names now show correctly.
+
+Rows used to display raw package names such as dev.imranr.obtainium.fdroid when Android's package visibility rules hid the sending app. The manifest now declares a launcher-intent query, so the real app name is resolved for any app with a launcher icon.
+
+No other behaviour changed. The version number moves to 1.1 so this build can be offered as an update.
