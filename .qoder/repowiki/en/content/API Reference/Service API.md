@@ -3,6 +3,7 @@
 <cite>
 **Referenced Files in This Document**
 - [NotificationListener.kt](file://app/src/main/java/com/notificationlog/NotificationListener.kt)
+- [ListenerConnection.kt](file://app/src/main/java/com/notificationlog/ListenerConnection.kt)
 - [AndroidManifest.xml](file://app/src/main/AndroidManifest.xml)
 - [MainActivity.kt](file://app/src/main/java/com/notificationlog/MainActivity.kt)
 - [MainViewModel.kt](file://app/src/main/java/com/notificationlog/MainViewModel.kt)
@@ -13,6 +14,15 @@
 - [NotificationItem.kt](file://app/src/main/java/com/notificationlog/model/NotificationItem.kt)
 - [notification_service.xml](file://app/src/main/res/xml/notification_service.xml)
 </cite>
+
+## Update Summary
+**Changes Made**
+- Added comprehensive documentation for the new ListenerConnection state management system
+- Updated service binding section to reflect enhanced connection state tracking
+- Enhanced error handling documentation for OEM-specific issues (MIUI/HyperOS AutoStartManagerService)
+- Improved user feedback mechanisms for connection states
+- Updated architecture diagrams to include the new ListenerConnection component
+- Enhanced troubleshooting guide with OEM-specific scenarios
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -28,8 +38,10 @@
 ## Introduction
 This document provides comprehensive API documentation for the NotificationListener service and related background operation interfaces. It covers the service lifecycle, notification capture mechanisms, broadcast communication protocols, service registration in AndroidManifest.xml, intent filters, permissions, notification processing pipeline, data transformation methods, background execution constraints, and practical examples for binding, event handling, and state management. It also addresses service restart scenarios, memory management, and battery optimization considerations.
 
+**Updated** Enhanced with new ListenerConnection state management system that provides accurate connection status tracking and improved error handling for OEM-specific issues like MIUI/HyperOS AutoStartManagerService behavior.
+
 ## Project Structure
-The project follows a modular Android architecture with a foreground-aware NotificationListener service, a Room database for persistence, and a UI layer built with Activities and ViewModels. The service integrates with the Android notification listener framework and communicates with the UI via local broadcasts.
+The project follows a modular Android architecture with a foreground-aware NotificationListener service, a Room database for persistence, and a UI layer built with Activities and ViewModels. The service integrates with the Android notification listener framework and communicates with the UI via local broadcasts. A new ListenerConnection component manages connection state across the application lifecycle.
 
 ```mermaid
 graph TB
@@ -39,6 +51,7 @@ App["NotificationApp (Application)"]
 Activity["MainActivity (UI)"]
 VM["MainViewModel"]
 Service["NotificationListener (Service)"]
+Conn["ListenerConnection (State Manager)"]
 end
 subgraph "Data Layer"
 Repo["NotificationRepository"]
@@ -54,6 +67,8 @@ DAO --> Entity
 Activity --> VM
 VM --> Repo
 Service --> Repo
+Service --> Conn
+Conn --> VM
 Service --> Activity
 VM --> Activity
 ```
@@ -68,6 +83,7 @@ VM --> Activity
 - [MainActivity.kt:43-108](file://app/src/main/java/com/notificationlog/MainActivity.kt#L43-L108)
 - [MainViewModel.kt:15-48](file://app/src/main/java/com/notificationlog/MainViewModel.kt#L15-L48)
 - [NotificationListener.kt:23-173](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L23-L173)
+- [ListenerConnection.kt:18-31](file://app/src/main/java/com/notificationlog/ListenerConnection.kt#L18-L31)
 
 **Section sources**
 - [AndroidManifest.xml:1-45](file://app/src/main/AndroidManifest.xml#L1-L45)
@@ -76,27 +92,34 @@ VM --> Activity
 - [NotificationDatabase.kt:1-10](file://app/src/main/java/com/notificationlog/data/NotificationDatabase.kt#L1-L10)
 - [NotificationDao.kt:1-26](file://app/src/main/java/com/notificationlog/data/NotificationDao.kt#L1-L26)
 - [NotificationItem.kt:1-19](file://app/src/main/java/com/notificationlog/model/NotificationItem.kt#L1-L19)
-- [MainActivity.kt:1-717](file://app/src/main/java/com/notificationlog/MainActivity.kt#L1-L717)
-- [MainViewModel.kt:1-121](file://app/src/main/java/com/notificationlog/MainViewModel.kt#L1-L121)
-- [NotificationListener.kt:1-173](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L1-L173)
+- [MainActivity.kt:1-1076](file://app/src/main/java/com/notificationlog/MainActivity.kt#L1-L1076)
+- [MainViewModel.kt:1-285](file://app/src/main/java/com/notificationlog/MainViewModel.kt#L1-L285)
+- [NotificationListener.kt:1-211](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L1-L211)
+- [ListenerConnection.kt:1-32](file://app/src/main/java/com/notificationlog/ListenerConnection.kt#L1-L32)
 
 ## Core Components
-- NotificationListener: Android NotificationListenerService subclass responsible for capturing notifications, persisting them, and broadcasting updates to the UI.
-- MainActivity: UI controller that registers broadcast receivers, manages permissions, toggles capture state, and displays captured notifications.
-- MainViewModel: AndroidViewModel that observes service status, loads notifications from the repository, and exposes LiveData to the UI.
-- NotificationRepository: Repository layer coordinating Room DAO operations for CRUD on NotificationItem entities.
-- NotificationDatabase and NotificationDao: Room database and DAO for persistent storage of notifications.
-- NotificationItem: Parcelable Room entity representing a captured notification.
-- NotificationApp: Application class initializing the Room database and exposing a global repository instance.
+- **NotificationListener**: Android NotificationListenerService subclass responsible for capturing notifications, persisting them, and broadcasting updates to the UI.
+- **ListenerConnection**: Singleton state manager that tracks actual service binding status, providing LiveData for connection state and handling thread-safe state updates.
+- **MainActivity**: UI controller that registers broadcast receivers, manages permissions, toggles capture state, and displays captured notifications.
+- **MainViewModel**: AndroidViewModel that observes service status, loads notifications from the repository, and exposes LiveData to the UI.
+- **NotificationRepository**: Repository layer coordinating Room DAO operations for CRUD on NotificationItem entities.
+- **NotificationDatabase and NotificationDao**: Room database and DAO for persistent storage of notifications.
+- **NotificationItem**: Parcelable Room entity representing a captured notification.
+- **NotificationApp**: Application class initializing the Room database and exposing a global repository instance.
 
 Key responsibilities:
-- Service lifecycle: onListenerConnected, onListenerDisconnected, onNotificationPosted, onNotificationRemoved, onDestroy.
-- Broadcast protocol: NOTIFICATIONS_UPDATED and LISTENER_DISCONNECTED for inter-process communication.
-- Persistence: Room database integration for storing notifications.
-- UI integration: Local broadcasts to refresh UI and show warnings when access is revoked.
+- **Service lifecycle**: onListenerConnected, onListenerDisconnected, onNotificationPosted, onNotificationRemoved, onDestroy.
+- **Connection state management**: Real-time tracking of actual service binding status vs. permission settings.
+- **Broadcast protocol**: NOTIFICATIONS_UPDATED and LISTENER_DISCONNECTED for inter-process communication.
+- **Persistence**: Room database integration for storing notifications.
+- **OEM-specific error handling**: Special handling for MIUI/HyperOS AutoStartManagerService behavior.
+- **UI integration**: Local broadcasts to refresh UI and show warnings when access is revoked.
+
+**Updated** Added ListenerConnection as a core component for managing service binding state and improved error handling for OEM-specific scenarios.
 
 **Section sources**
-- [NotificationListener.kt:23-173](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L23-L173)
+- [NotificationListener.kt:23-211](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L23-L211)
+- [ListenerConnection.kt:18-31](file://app/src/main/java/com/notificationlog/ListenerConnection.kt#L18-L31)
 - [MainActivity.kt:43-144](file://app/src/main/java/com/notificationlog/MainActivity.kt#L43-L144)
 - [MainViewModel.kt:15-115](file://app/src/main/java/com/notificationlog/MainViewModel.kt#L15-L115)
 - [NotificationRepository.kt:6-27](file://app/src/main/java/com/notificationlog/repository/NotificationRepository.kt#L6-L27)
@@ -106,12 +129,13 @@ Key responsibilities:
 - [NotificationApp.kt:8-27](file://app/src/main/java/com/notificationlog/NotificationApp.kt#L8-L27)
 
 ## Architecture Overview
-The system uses Android’s NotificationListenerService to capture notifications in real-time. The service transforms StatusBarNotification into NotificationItem entities, persists them via Room, and broadcasts updates to MainActivity. MainActivity registers receivers to receive these broadcasts and refreshes its UI accordingly. The ViewModel mediates between UI and repository, providing LiveData streams for reactive updates.
+The system uses Android's NotificationListenerService to capture notifications in real-time. The service transforms StatusBarNotification into NotificationItem entities, persists them via Room, and broadcasts updates to MainActivity. A new ListenerConnection component provides accurate connection state tracking, distinguishing between permission granted and actual service binding. MainActivity registers receivers to receive these broadcasts and refreshes its UI accordingly. The ViewModel mediates between UI and repository, providing LiveData streams for reactive updates.
 
 ```mermaid
 sequenceDiagram
 participant OS as "Android OS"
 participant Service as "NotificationListener"
+participant Conn as "ListenerConnection"
 participant Repo as "NotificationRepository"
 participant DB as "Room Database"
 participant DAO as "NotificationDao"
@@ -131,10 +155,12 @@ DAO-->>Repo : "List<NotificationItem>"
 Repo-->>VM : "List<NotificationItem>"
 VM-->>UI : "LiveData updates"
 UI-->>UI : "Refresh RecyclerView"
+Note over Conn : "Tracks actual bind state<br/>vs permission setting"
 ```
 
 **Diagram sources**
 - [NotificationListener.kt:109-153](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L109-L153)
+- [ListenerConnection.kt:18-31](file://app/src/main/java/com/notificationlog/ListenerConnection.kt#L18-L31)
 - [NotificationRepository.kt:16-18](file://app/src/main/java/com/notificationlog/repository/NotificationRepository.kt#L16-L18)
 - [NotificationDao.kt:18-19](file://app/src/main/java/com/notificationlog/data/NotificationDao.kt#L18-L19)
 - [MainActivity.kt:57-66](file://app/src/main/java/com/notificationlog/MainActivity.kt#L57-L66)
@@ -146,14 +172,17 @@ UI-->>UI : "Refresh RecyclerView"
 The NotificationListener service extends NotificationListenerService and implements:
 - Lifecycle callbacks: onListenerConnected, onListenerDisconnected, onNotificationPosted, onNotificationRemoved, onDestroy.
 - Notification capture: Extracts title, content, timestamp, and app name; checks captureEnabled preference; persists via repository; broadcasts updates.
+- Connection state management: Updates ListenerConnection state on connect/disconnect events.
 - Reconnection handling: Requests rebind on API 33+ and shows a high-priority warning notification when access is lost.
 - Broadcast communication: Emits NOTIFICATIONS_UPDATED and LISTENER_DISCONNECTED with package-scoped intents.
+- OEM-specific error handling: Enhanced exception handling for rebind requests and notification posting.
 
 Implementation highlights:
 - Background execution: Uses CoroutineScope with Dispatchers.IO and SupervisorJob for non-cancellable background tasks.
 - Persistence: Initializes Room database and repository lazily; inserts NotificationItem asynchronously.
 - Safety: Catches exceptions during insertion and logs errors; cancels a warning notification on successful connection.
 - Restart scenario: Calls requestRebind on API 33+ to recover from disconnection.
+- Thread safety: Uses postValue for thread-safe state updates in ListenerConnection.
 
 ```mermaid
 classDiagram
@@ -168,6 +197,12 @@ class NotificationListener {
 -job : SupervisorJob
 -scope : CoroutineScope
 -repository : NotificationRepository
+}
+class ListenerConnection {
++connected : LiveData~Boolean~
++isConnected : Boolean
++setConnected(connected : Boolean)
+-_connected : MutableLiveData~Boolean~
 }
 class NotificationRepository {
 +getAllNotifications()
@@ -198,20 +233,80 @@ class NotificationItem {
 +key : String?
 }
 NotificationListener --> NotificationRepository : "uses"
+NotificationListener --> ListenerConnection : "updates state"
 NotificationRepository --> NotificationDatabase : "wraps"
 NotificationDatabase --> NotificationDao : "exposes"
 NotificationDao --> NotificationItem : "persists"
 ```
 
 **Diagram sources**
-- [NotificationListener.kt:23-173](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L23-L173)
+- [NotificationListener.kt:23-211](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L23-L211)
+- [ListenerConnection.kt:18-31](file://app/src/main/java/com/notificationlog/ListenerConnection.kt#L18-L31)
 - [NotificationRepository.kt:6-27](file://app/src/main/java/com/notificationlog/repository/NotificationRepository.kt#L6-L27)
 - [NotificationDatabase.kt:7-10](file://app/src/main/java/com/notificationlog/data/NotificationDatabase.kt#L7-L10)
 - [NotificationDao.kt:6-26](file://app/src/main/java/com/notificationlog/data/NotificationDao.kt#L6-L26)
 - [NotificationItem.kt:8-19](file://app/src/main/java/com/notificationlog/model/NotificationItem.kt#L8-L19)
 
 **Section sources**
-- [NotificationListener.kt:23-173](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L23-L173)
+- [NotificationListener.kt:23-211](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L23-L211)
+- [ListenerConnection.kt:18-31](file://app/src/main/java/com/notificationlog/ListenerConnection.kt#L18-L31)
+
+### ListenerConnection State Management
+The ListenerConnection component provides centralized state management for service binding status:
+- **Thread-safe state updates**: Uses MutableLiveData with postValue for safe cross-thread communication.
+- **Real-time connection tracking**: Observes actual service binding rather than just permission settings.
+- **OEM-specific handling**: Addresses MIUI/HyperOS AutoStartManagerService behavior where permissions are granted but binds are refused.
+- **LiveData integration**: Exposes connection state as LiveData for reactive UI updates.
+
+Key features:
+- Singleton pattern for global state access.
+- Automatic state synchronization between service and UI components.
+- Prevention of false positive "capture running" states when service is unbound.
+
+**Updated** New component that solves the critical issue where apps could claim to be capturing while actually being deaf due to OEM-specific binding refusals.
+
+**Section sources**
+- [ListenerConnection.kt:1-32](file://app/src/main/java/com/notificationlog/ListenerConnection.kt#L1-L32)
+
+### Enhanced Service Binding and Error Handling
+The service binding has been significantly enhanced with improved error handling and user feedback:
+
+**Connection State Tracking:**
+- Distinguishes between three states: NOT_GRANTED, NOT_CONNECTED, CONNECTED
+- Tracks actual service binding status vs. permission settings
+- Provides immediate feedback when connection state changes
+
+**OEM-Specific Error Handling:**
+- Handles MIUI/HyperOS AutoStartManagerService behavior
+- Detects when permissions are granted but binds are refused
+- Shows appropriate user feedback for different failure scenarios
+
+**Improved User Feedback:**
+- Clickable service status indicator for reconnection attempts
+- Toast messages for connection success/failure
+- Dialog prompts for manual intervention when needed
+- Persistent notification warnings when access is lost
+
+```mermaid
+flowchart TD
+A["Permission Granted"] --> B{"Actual Bind Success?"}
+B -- "Yes" --> C["CONNECTED State"]
+B -- "No" --> D["NOT_CONNECTED State"]
+D --> E["Auto-rebind Attempt"]
+E --> F{"Rebind Success?"}
+F -- "Yes" --> C
+F -- "No" --> G["Show User Feedback"]
+G --> H["Manual Intervention Required"]
+C --> I["Normal Operation"]
+```
+
+**Diagram sources**
+- [MainViewModel.kt:82-99](file://app/src/main/java/com/notificationlog/MainViewModel.kt#L82-L99)
+- [MainActivity.kt:442-468](file://app/src/main/java/com/notificationlog/MainActivity.kt#L442-L468)
+
+**Section sources**
+- [MainViewModel.kt:82-122](file://app/src/main/java/com/notificationlog/MainViewModel.kt#L82-L122)
+- [MainActivity.kt:442-501](file://app/src/main/java/com/notificationlog/MainActivity.kt#L442-L501)
 
 ### MainActivity and Broadcast Communication
 MainActivity registers two local broadcast receivers:
@@ -222,12 +317,24 @@ Lifecycle integration:
 - Registers receivers in onResume with RECEIVER_NOT_EXPORTED on API 33+ and standard registration otherwise.
 - Unregisters receivers in onPause to prevent leaks.
 - Observes service status LiveData from MainViewModel to update UI state and buttons.
+- Implements auto-rebind functionality for NOT_CONNECTED state.
+
+Enhanced features:
+- Clickable service status text for manual reconnection attempts.
+- Improved error messaging and user guidance.
+- Better state management with proper cleanup.
 
 ```mermaid
 sequenceDiagram
 participant Service as "NotificationListener"
+participant Conn as "ListenerConnection"
 participant UI as "MainActivity"
 participant VM as "MainViewModel"
+Service->>Conn : "setConnected(true/false)"
+Conn->>VM : "LiveData observer triggered"
+VM->>VM : "refreshCaptureState()"
+VM->>UI : "captureState LiveData updated"
+UI->>UI : "applyCaptureState(state)"
 Service->>UI : "sendBroadcast(NOTIFICATIONS_UPDATED)"
 UI->>UI : "notificationsUpdatedReceiver.onReceive()"
 UI->>VM : "viewModel.loadNotifications(sort)"
@@ -241,13 +348,15 @@ UI-->>UI : "Show dialog to re-enable access"
 **Diagram sources**
 - [MainActivity.kt:51-66](file://app/src/main/java/com/notificationlog/MainActivity.kt#L51-L66)
 - [MainActivity.kt:110-144](file://app/src/main/java/com/notificationlog/MainActivity.kt#L110-L144)
-- [NotificationListener.kt:62-65](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L62-L65)
-- [NotificationListener.kt:142-144](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L142-L144)
+- [NotificationListener.kt:46-77](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L46-L77)
+- [ListenerConnection.kt:18-31](file://app/src/main/java/com/notificationlog/ListenerConnection.kt#L18-L31)
+- [MainViewModel.kt:65-76](file://app/src/main/java/com/notificationlog/MainViewModel.kt#L65-L76)
 
 **Section sources**
 - [MainActivity.kt:43-144](file://app/src/main/java/com/notificationlog/MainActivity.kt#L43-L144)
-- [NotificationListener.kt:62-65](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L62-L65)
-- [NotificationListener.kt:142-144](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L142-L144)
+- [NotificationListener.kt:46-77](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L46-L77)
+- [ListenerConnection.kt:18-31](file://app/src/main/java/com/notificationlog/ListenerConnection.kt#L18-L31)
+- [MainViewModel.kt:65-76](file://app/src/main/java/com/notificationlog/MainViewModel.kt#L65-L76)
 
 ### Service Registration and Permissions
 Service registration in AndroidManifest.xml:
@@ -323,47 +432,53 @@ I --> J["MainActivity receives and refreshes UI"]
 - [NotificationDao.kt:18-19](file://app/src/main/java/com/notificationlog/data/NotificationDao.kt#L18-L19)
 - [MainActivity.kt:57-66](file://app/src/main/java/com/notificationlog/MainActivity.kt#L57-L66)
 
-### Service Binding, Restart Scenarios, and State Management
-Service binding:
-- The service does not expose an IBinder interface; binding is handled by the Android system for notification listener services.
-- The UI checks service status via Settings.Secure.getString("enabled_notification_listeners").
+### Enhanced Service Binding, Restart Scenarios, and State Management
+**Enhanced Service Binding:**
+- Uses ListenerConnection for accurate state tracking instead of relying solely on Settings.Secure.getString.
+- Three-state model: NOT_GRANTED, NOT_CONNECTED, CONNECTED.
+- Automatic rebind attempts for OEM-specific scenarios.
 
-Restart scenarios:
+**Restart Scenarios:**
 - onListenerDisconnected triggers rebind request on API 33+ and shows a high-priority warning notification.
+- Enhanced error handling for rebind failures with detailed logging.
 - The UI listens for LISTENER_DISCONNECTED and prompts the user to re-enable access.
 
-State management:
+**Advanced State Management:**
 - SharedPreferences stores capture_enabled, dark_mode, show_running_notif.
 - MainViewModel exposes LiveData for service status and notification count.
 - MainActivity updates UI state based on service status and preferences.
+- Thread-safe state updates using postValue for cross-thread communication.
 
 ```mermaid
 sequenceDiagram
 participant OS as "Android OS"
 participant Service as "NotificationListener"
+participant Conn as "ListenerConnection"
 participant UI as "MainActivity"
 participant VM as "MainViewModel"
 OS->>Service : "onListenerDisconnected()"
+Service->>Conn : "setConnected(false)"
 Service->>Service : "requestRebind() on API 33+"
 Service->>UI : "sendBroadcast(LISTENER_DISCONNECTED)"
 UI->>UI : "listenerDisconnectedReceiver.onReceive()"
 UI->>UI : "Show dialog to re-enable access"
 UI->>VM : "checkNotificationServiceStatus()"
-VM-->>UI : "serviceStatus LiveData updated"
+VM->>VM : "refreshCaptureState()"
+VM-->>UI : "captureState LiveData updated"
 UI-->>UI : "Update button states and status text"
 ```
 
 **Diagram sources**
-- [NotificationListener.kt:44-65](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L44-L65)
+- [NotificationListener.kt:46-77](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L46-L77)
+- [ListenerConnection.kt:18-31](file://app/src/main/java/com/notificationlog/ListenerConnection.kt#L18-L31)
 - [MainActivity.kt:51-66](file://app/src/main/java/com/notificationlog/MainActivity.kt#L51-L66)
-- [MainActivity.kt:324-332](file://app/src/main/java/com/notificationlog/MainActivity.kt#L324-L332)
-- [MainViewModel.kt:37-48](file://app/src/main/java/com/notificationlog/MainViewModel.kt#L37-L48)
+- [MainViewModel.kt:82-99](file://app/src/main/java/com/notificationlog/MainViewModel.kt#L82-L99)
 
 **Section sources**
-- [NotificationListener.kt:44-65](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L44-L65)
+- [NotificationListener.kt:46-77](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L46-L77)
+- [ListenerConnection.kt:18-31](file://app/src/main/java/com/notificationlog/ListenerConnection.kt#L18-L31)
 - [MainActivity.kt:51-66](file://app/src/main/java/com/notificationlog/MainActivity.kt#L51-L66)
-- [MainActivity.kt:324-332](file://app/src/main/java/com/notificationlog/MainActivity.kt#L324-L332)
-- [MainViewModel.kt:37-48](file://app/src/main/java/com/notificationlog/MainViewModel.kt#L37-L48)
+- [MainViewModel.kt:82-99](file://app/src/main/java/com/notificationlog/MainViewModel.kt#L82-L99)
 
 ## Dependency Analysis
 The service depends on:
@@ -371,26 +486,31 @@ The service depends on:
 - Repository for DAO abstraction.
 - SharedPreferences for runtime configuration.
 - Notification channels for user feedback.
+- **ListenerConnection for state management**.
 
 MainActivity depends on:
 - MainViewModel for reactive state.
 - SharedPreferences for user preferences.
 - Notification channels for persistent status notification.
+- **ListenerConnection for connection state observation**.
 
 ```mermaid
 graph LR
 Service["NotificationListener"] --> Repo["NotificationRepository"]
+Service --> Conn["ListenerConnection"]
 Repo --> DB["NotificationDatabase"]
 DB --> DAO["NotificationDao"]
 DAO --> Item["NotificationItem"]
 UI["MainActivity"] --> VM["MainViewModel"]
 VM --> Repo
+VM --> Conn
 Service --> UI
 UI --> Channels["Notification Channels"]
 ```
 
 **Diagram sources**
 - [NotificationListener.kt:23-34](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L23-L34)
+- [ListenerConnection.kt:18-31](file://app/src/main/java/com/notificationlog/ListenerConnection.kt#L18-L31)
 - [NotificationRepository.kt:6-27](file://app/src/main/java/com/notificationlog/repository/NotificationRepository.kt#L6-L27)
 - [NotificationDatabase.kt:7-10](file://app/src/main/java/com/notificationlog/data/NotificationDatabase.kt#L7-L10)
 - [NotificationDao.kt:6-26](file://app/src/main/java/com/notificationlog/data/NotificationDao.kt#L6-L26)
@@ -400,6 +520,7 @@ UI --> Channels["Notification Channels"]
 
 **Section sources**
 - [NotificationListener.kt:23-34](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L23-L34)
+- [ListenerConnection.kt:18-31](file://app/src/main/java/com/notificationlog/ListenerConnection.kt#L18-L31)
 - [NotificationRepository.kt:6-27](file://app/src/main/java/com/notificationlog/repository/NotificationRepository.kt#L6-L27)
 - [NotificationDatabase.kt:7-10](file://app/src/main/java/com/notificationlog/data/NotificationDatabase.kt#L7-L10)
 - [NotificationDao.kt:6-26](file://app/src/main/java/com/notificationlog/data/NotificationDao.kt#L6-L26)
@@ -413,21 +534,29 @@ UI --> Channels["Notification Channels"]
 - Broadcast efficiency: Single broadcast per insertion to minimize UI refresh overhead.
 - Memory management: Cancels background job in onDestroy to prevent leaks.
 - Battery optimization: Avoids wake locks; relies on OS notification delivery. Persistent notification is optional and controlled by user preference.
+- **Connection state efficiency**: ListenerConnection uses postValue for efficient cross-thread state updates without unnecessary recomputation.
 
-[No sources needed since this section provides general guidance]
+**Updated** Added performance consideration for the new ListenerConnection component which efficiently manages state updates across threads.
 
 ## Troubleshooting Guide
 Common issues and resolutions:
-- Notification access revoked: The service shows a high-priority warning notification and broadcasts LISTENER_DISCONNECTED. MainActivity displays a dialog and opens system settings for re-enabling.
-- No notifications captured: Verify capture_enabled preference and ensure notification access is granted. Check that the service is registered and exported in the manifest.
-- UI not updating: Confirm receivers are registered in onResume and unregistered in onPause. Ensure broadcasts are sent with the correct action and package scope.
-- Database errors: Repository catches exceptions during insert and logs errors; verify Room initialization and DAO queries.
+- **Notification access revoked**: The service shows a high-priority warning notification and broadcasts LISTENER_DISCONNECTED. MainActivity displays a dialog and opens system settings for re-enabling.
+- **No notifications captured**: Verify capture_enabled preference and ensure notification access is granted. Check that the service is registered and exported in the manifest.
+- **UI not updating**: Confirm receivers are registered in onResume and unregistered in onPause. Ensure broadcasts are sent with the correct action and package scope.
+- **Database errors**: Repository catches exceptions during insert and logs errors; verify Room initialization and DAO queries.
+- **OEM-specific binding issues**: If the app claims to be capturing but nothing is written, check for MIUI/HyperOS AutoStartManagerService interference. The app should automatically attempt rebind and show appropriate user feedback.
+- **Connection state inconsistencies**: Use the three-state model (NOT_GRANTED, NOT_CONNECTED, CONNECTED) to diagnose issues. NOT_CONNECTED indicates permission granted but service unbound.
+
+**Updated** Enhanced troubleshooting guide with OEM-specific scenarios and connection state diagnostics.
 
 **Section sources**
-- [NotificationListener.kt:44-65](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L44-L65)
+- [NotificationListener.kt:46-77](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L46-L77)
 - [NotificationListener.kt:146-148](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L146-L148)
 - [MainActivity.kt:645-661](file://app/src/main/java/com/notificationlog/MainActivity.kt#L645-L661)
 - [MainActivity.kt:110-144](file://app/src/main/java/com/notificationlog/MainActivity.kt#L110-L144)
+- [ListenerConnection.kt:6-17](file://app/src/main/java/com/notificationlog/ListenerConnection.kt#L6-L17)
 
 ## Conclusion
-The NotificationListener service provides a robust foundation for capturing, persisting, and displaying Android notifications. Its integration with Room ensures reliable data storage, while local broadcasts enable responsive UI updates. Proper service registration, permissions, and lifecycle management are essential for consistent behavior across Android versions. The architecture supports restart scenarios gracefully and offers clear pathways for diagnostics and user intervention.
+The NotificationListener service provides a robust foundation for capturing, persisting, and displaying Android notifications. Its integration with Room ensures reliable data storage, while local broadcasts enable responsive UI updates. The new ListenerConnection component significantly improves reliability by accurately tracking service binding status versus permission settings, addressing critical OEM-specific issues like MIUI/HyperOS AutoStartManagerService behavior. Proper service registration, permissions, and lifecycle management are essential for consistent behavior across Android versions. The enhanced architecture supports restart scenarios gracefully and offers clear pathways for diagnostics and user intervention, with improved error handling and user feedback mechanisms throughout the application.
+
+**Updated** The addition of ListenerConnection state management and enhanced OEM-specific error handling makes the service more reliable and user-friendly, particularly on devices with aggressive background process management.

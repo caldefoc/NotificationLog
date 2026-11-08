@@ -15,6 +15,14 @@
 - [notification_service.xml](file://app/src/main/res/xml/notification_service.xml)
 </cite>
 
+## Update Summary
+**Changes Made**
+- Enhanced NotificationListener with mutex-based synchronization for thread-safe operations
+- Implemented duplicate prevention mechanism using notification keys and content comparison
+- Added updateCount field tracking for improved data integrity
+- Updated database schema with migration support for new fields
+- Enhanced repository methods for duplicate handling and data compaction
+
 ## Table of Contents
 1. [Introduction](#introduction)
 2. [Project Structure](#project-structure)
@@ -27,20 +35,20 @@
 9. [Conclusion](#conclusion)
 
 ## Introduction
-This document explains the real-time notification capture feature implemented in the application. It covers the NotificationListenerService background operation, Android notification system integration, the onNotificationPosted lifecycle, notification extraction and transformation pipeline, permissions and consent flow, coroutine-based asynchronous processing, Room database insertion, and broadcast communication with the main activity. It also includes troubleshooting guidance and performance considerations.
+This document explains the real-time notification capture feature implemented in the application. It covers the NotificationListenerService background operation, Android notification system integration, the onNotificationPosted lifecycle, notification extraction and transformation pipeline, permissions and consent flow, coroutine-based asynchronous processing, Room database insertion, and broadcast communication with the main activity. The system now includes enhanced thread safety, duplicate prevention, and improved data integrity mechanisms.
 
 ## Project Structure
 The notification capture feature spans several layers:
-- Android Service layer: NotificationListenerService subclass handles background notification events.
+- Android Service layer: NotificationListenerService subclass handles background notification events with mutex-based synchronization.
 - Presentation layer: MainActivity and MainViewModel manage UI, user actions, and state.
-- Data layer: Room database with DAO and Repository encapsulate persistence and queries.
-- Model layer: NotificationItem defines the persisted entity.
+- Data layer: Room database with DAO and Repository encapsulate persistence and queries with duplicate prevention.
+- Model layer: NotificationItem defines the persisted entity with updateCount tracking.
 - Adapter layer: RecyclerView adapter renders captured notifications.
 
 ```mermaid
 graph TB
 subgraph "Android Service Layer"
-NL["NotificationListener<br/>Background capture"]
+NL["NotificationListener<br/>Background capture with mutex sync"]
 end
 subgraph "Presentation Layer"
 MA["MainActivity<br/>UI & user actions"]
@@ -48,12 +56,12 @@ VM["MainViewModel<br/>State & queries"]
 AD["NotificationAdapter<br/>RecyclerView binding"]
 end
 subgraph "Data Layer"
-DB["NotificationDatabase<br/>Room DB"]
+DB["NotificationDatabase<br/>Room DB v2"]
 DAO["NotificationDao<br/>Queries & inserts"]
 REPO["NotificationRepository<br/>Domain operations"]
 end
 subgraph "Model Layer"
-NI["NotificationItem<br/>Entity & parcelable"]
+NI["NotificationItem<br/>Entity with updateCount"]
 end
 NL --> REPO
 REPO --> DAO
@@ -65,13 +73,13 @@ AD --> NI
 ```
 
 **Diagram sources**
-- [NotificationListener.kt:23-173](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L23-L173)
+- [NotificationListener.kt:23-211](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L23-L211)
 - [MainActivity.kt:43-717](file://app/src/main/java/com/notificationlog/MainActivity.kt#L43-L717)
 - [MainViewModel.kt:15-121](file://app/src/main/java/com/notificationlog/MainViewModel.kt#L15-L121)
-- [NotificationRepository.kt:6-27](file://app/src/main/java/com/notificationlog/repository/NotificationRepository.kt#L6-L27)
-- [NotificationDao.kt:6-26](file://app/src/main/java/com/notificationlog/data/NotificationDao.kt#L6-L26)
-- [NotificationDatabase.kt:7-10](file://app/src/main/java/com/notificationlog/data/NotificationDatabase.kt#L7-L10)
-- [NotificationItem.kt:8-19](file://app/src/main/java/com/notificationlog/model/NotificationItem.kt#L8-L19)
+- [NotificationRepository.kt:6-92](file://app/src/main/java/com/notificationlog/repository/NotificationRepository.kt#L6-L92)
+- [NotificationDao.kt:6-68](file://app/src/main/java/com/notificationlog/data/NotificationDao.kt#L6-L68)
+- [NotificationDatabase.kt:7-43](file://app/src/main/java/com/notificationlog/data/NotificationDatabase.kt#L7-L43)
+- [NotificationItem.kt:8-35](file://app/src/main/java/com/notificationlog/model/NotificationItem.kt#L8-L35)
 - [NotificationAdapter.kt:13-59](file://app/src/main/java/com/notificationlog/adapter/NotificationAdapter.kt#L13-L59)
 
 **Section sources**
@@ -79,27 +87,27 @@ AD --> NI
 - [notification_service.xml:1-5](file://app/src/main/res/xml/notification_service.xml#L1-L5)
 
 ## Core Components
-- NotificationListener: Background service that receives notifications via onNotificationPosted, transforms them, persists asynchronously, and notifies the UI.
-- MainActivity: Orchestrates permissions, service status, persistent notification, and UI updates via broadcasts.
-- MainViewModel: Manages service status checks, loads notifications, and exposes LiveData to the UI.
-- NotificationRepository: Encapsulates DAO operations for Room.
-- NotificationDao: Defines queries and insert/delete operations.
-- NotificationDatabase: Room database definition.
-- NotificationItem: Entity stored in Room.
-- NotificationAdapter: RecyclerView adapter for displaying notifications.
+- **Enhanced NotificationListener**: Background service that receives notifications via onNotificationPosted with mutex-based synchronization, transforms them, prevents duplicates, persists asynchronously, and notifies the UI.
+- **MainActivity**: Orchestrates permissions, service status, persistent notification, and UI updates via broadcasts.
+- **MainViewModel**: Manages service status checks, loads notifications, and exposes LiveData to the UI.
+- **Enhanced NotificationRepository**: Encapsulates DAO operations for Room with duplicate prevention and data compaction capabilities.
+- **Enhanced NotificationDao**: Defines queries and insert/delete operations with bumpUpdateCount functionality.
+- **Updated NotificationDatabase**: Room database definition with migration support for v2 schema.
+- **Enhanced NotificationItem**: Entity stored in Room with updateCount and lastUpdated fields.
+- **NotificationAdapter**: RecyclerView adapter for displaying notifications.
 
 **Section sources**
-- [NotificationListener.kt:23-173](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L23-L173)
+- [NotificationListener.kt:23-211](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L23-L211)
 - [MainActivity.kt:43-717](file://app/src/main/java/com/notificationlog/MainActivity.kt#L43-L717)
 - [MainViewModel.kt:15-121](file://app/src/main/java/com/notificationlog/MainViewModel.kt#L15-L121)
-- [NotificationRepository.kt:6-27](file://app/src/main/java/com/notificationlog/repository/NotificationRepository.kt#L6-L27)
-- [NotificationDao.kt:6-26](file://app/src/main/java/com/notificationlog/data/NotificationDao.kt#L6-L26)
-- [NotificationDatabase.kt:7-10](file://app/src/main/java/com/notificationlog/data/NotificationDatabase.kt#L7-L10)
-- [NotificationItem.kt:8-19](file://app/src/main/java/com/notificationlog/model/NotificationItem.kt#L8-L19)
+- [NotificationRepository.kt:6-92](file://app/src/main/java/com/notificationlog/repository/NotificationRepository.kt#L6-L92)
+- [NotificationDao.kt:6-68](file://app/src/main/java/com/notificationlog/data/NotificationDao.kt#L6-L68)
+- [NotificationDatabase.kt:7-43](file://app/src/main/java/com/notificationlog/data/NotificationDatabase.kt#L7-L43)
+- [NotificationItem.kt:8-35](file://app/src/main/java/com/notificationlog/model/NotificationItem.kt#L8-L35)
 - [NotificationAdapter.kt:13-59](file://app/src/main/java/com/notificationlog/adapter/NotificationAdapter.kt#L13-L59)
 
 ## Architecture Overview
-The system integrates Android’s NotificationListenerService with Room persistence and a reactive UI. The service runs in the background, captures notifications, and dispatches broadcasts to inform the UI. The UI listens for these broadcasts and refreshes the list.
+The system integrates Android's NotificationListenerService with Room persistence and a reactive UI. The service runs in the background with mutex-based synchronization, captures notifications with duplicate prevention, and dispatches broadcasts to inform the UI. The UI listens for these broadcasts and refreshes the list.
 
 ```mermaid
 sequenceDiagram
@@ -112,9 +120,18 @@ participant MA as "MainActivity"
 participant VM as "MainViewModel"
 Sys->>NL : "onNotificationPosted(StatusBarNotification)"
 NL->>NL : "Extract title, text, package, postTime"
+NL->>NL : "Mutex lock for thread safety"
+NL->>Repo : "latestForKey(key)"
+Repo->>DAO : "latestForKey(...)"
+DAO-->>Repo : "Latest notification or null"
+alt Duplicate detected (same key + content)
+NL->>Repo : "bumpUpdateCount(id, timestamp)"
+Repo->>DAO : "UPDATE SET updateCount + 1"
+else New notification
 NL->>Repo : "insert(NotificationItem)"
-Repo->>DAO : "insert(...)"
+Repo->>DAO : "INSERT"
 DAO->>DB : "persist"
+end
 NL->>MA : "Broadcast 'NOTIFICATIONS_UPDATED' with last_captured"
 MA->>VM : "observe broadcast and reload notifications"
 VM->>Repo : "loadNotifications(sorted)"
@@ -126,28 +143,32 @@ MA-->>MA : "Adapter submitList(...)"
 ```
 
 **Diagram sources**
-- [NotificationListener.kt:109-153](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L109-L153)
-- [NotificationRepository.kt:16-18](file://app/src/main/java/com/notificationlog/repository/NotificationRepository.kt#L16-L18)
-- [NotificationDao.kt:18-19](file://app/src/main/java/com/notificationlog/data/NotificationDao.kt#L18-L19)
+- [NotificationListener.kt:121-190](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L121-L190)
+- [NotificationRepository.kt:22-30](file://app/src/main/java/com/notificationlog/repository/NotificationRepository.kt#L22-L30)
+- [NotificationDao.kt:41-49](file://app/src/main/java/com/notificationlog/data/NotificationDao.kt#L41-L49)
 - [MainActivity.kt:51-66](file://app/src/main/java/com/notificationlog/MainActivity.kt#L51-L66)
 - [MainViewModel.kt:59-77](file://app/src/main/java/com/notificationlog/MainViewModel.kt#L59-L77)
 
 ## Detailed Component Analysis
 
-### NotificationListener Service
+### Enhanced NotificationListener Service
 Responsibilities:
-- Receives notifications via onNotificationPosted.
+- Receives notifications via onNotificationPosted with mutex-based synchronization.
 - Extracts metadata (title, text, package, post time).
 - Resolves app label from package manager.
 - Checks user preference to capture or ignore.
-- Inserts into Room using a coroutine on IO dispatcher.
+- Performs duplicate detection using notification keys and content comparison.
+- Inserts into Room using a coroutine on IO dispatcher with thread safety.
 - Broadcasts updates to MainActivity.
 - Handles connection/disconnection and shows a warning notification when access is revoked.
 
 Key behaviors:
+- **Mutex-based synchronization**: Uses `insertMutex` to prevent race conditions during concurrent notification processing.
+- **Duplicate prevention**: Compares incoming notifications with existing ones using key and content matching.
+- **Update counting**: Increments `updateCount` for repeated notifications instead of creating duplicates.
 - onListenerConnected: Cancels a previous warning notification.
 - onListenerDisconnected: Requests rebind on Android 13+, shows a high-priority warning notification, and broadcasts a disconnection event.
-- onNotificationPosted: Builds NotificationItem, launches coroutine to persist, and broadcasts completion.
+- onNotificationPosted: Builds NotificationItem, performs duplicate check, launches coroutine to persist, and broadcasts completion.
 - onNotificationRemoved: Logs removal events.
 - cancelNotificationByKey: Safely cancels a notification with SecurityException handling.
 
@@ -160,6 +181,7 @@ class NotificationListener {
 +onNotificationRemoved(sbn)
 -showAccessRevokedNotification()
 -cancelNotificationByKey(key)
+-insertMutex : Mutex
 -scope : CoroutineScope
 -repository : NotificationRepository
 }
@@ -168,19 +190,27 @@ class NotificationRepository {
 +getNotificationsSortedByDate()
 +getNotificationsSortedByApp()
 +insert(notification)
++bumpUpdateCount(id, lastUpdated)
++latestForKey(key)
++compactDuplicates()
 +delete(notification)
 +deleteAll()
++deleteMatching(pattern)
 }
 class NotificationDao {
 +getAll()
 +getNotificationsSortedByDate()
 +getNotificationsSortedByApp()
 +insert(notification)
++bumpUpdateCount(id, lastUpdated)
++latestForKey(key)
 +delete(notification)
 +deleteAll()
++deleteMatching(pattern)
 }
 class NotificationDatabase {
 +notificationDao()
++MIGRATION_1_2
 }
 class NotificationItem {
 +id : Long
@@ -190,6 +220,8 @@ class NotificationItem {
 +content : String
 +timestamp : Long
 +key : String?
++updateCount : Int
++lastUpdated : Long
 }
 NotificationListener --> NotificationRepository : "uses"
 NotificationRepository --> NotificationDao : "delegates"
@@ -198,18 +230,18 @@ NotificationRepository --> NotificationItem : "persists"
 ```
 
 **Diagram sources**
-- [NotificationListener.kt:23-173](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L23-L173)
-- [NotificationRepository.kt:6-27](file://app/src/main/java/com/notificationlog/repository/NotificationRepository.kt#L6-L27)
-- [NotificationDao.kt:6-26](file://app/src/main/java/com/notificationlog/data/NotificationDao.kt#L6-L26)
-- [NotificationDatabase.kt:7-10](file://app/src/main/java/com/notificationlog/data/NotificationDatabase.kt#L7-L10)
-- [NotificationItem.kt:8-19](file://app/src/main/java/com/notificationlog/model/NotificationItem.kt#L8-L19)
+- [NotificationListener.kt:23-211](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L23-L211)
+- [NotificationRepository.kt:6-92](file://app/src/main/java/com/notificationlog/repository/NotificationRepository.kt#L6-L92)
+- [NotificationDao.kt:6-68](file://app/src/main/java/com/notificationlog/data/NotificationDao.kt#L6-L68)
+- [NotificationDatabase.kt:7-43](file://app/src/main/java/com/notificationlog/data/NotificationDatabase.kt#L7-L43)
+- [NotificationItem.kt:8-35](file://app/src/main/java/com/notificationlog/model/NotificationItem.kt#L8-L35)
 
 **Section sources**
-- [NotificationListener.kt:36-65](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L36-L65)
-- [NotificationListener.kt:109-153](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L109-L153)
-- [NotificationListener.kt:160-166](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L160-L166)
+- [NotificationListener.kt:46-77](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L46-L77)
+- [NotificationListener.kt:121-190](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L121-L190)
+- [NotificationListener.kt:192-209](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L192-L209)
 
-### Notification Extraction and Transformation Pipeline
+### Enhanced Notification Extraction and Transformation Pipeline
 Extraction steps:
 - Retrieve package name and extras from StatusBarNotification.
 - Extract title and text from extras.
@@ -217,9 +249,11 @@ Extraction steps:
 - Resolve app name from package manager; fallback to package name on failure.
 - Read user preference flag to decide whether to capture.
 
-Transformation:
-- Construct NotificationItem with extracted fields.
-- Persist via repository.insert.
+Enhanced transformation:
+- **Thread-safe processing**: All database operations are wrapped in mutex locks.
+- **Duplicate detection**: Compares incoming notification with latest entry using key and content.
+- **Update counting**: Increments updateCount for identical notifications instead of creating duplicates.
+- **Timestamp tracking**: Updates lastUpdated field for better chronological ordering.
 
 ```mermaid
 flowchart TD
@@ -228,22 +262,29 @@ GetExtras --> ExtractFields["Extract title, text, package, postTime"]
 ExtractFields --> ResolveApp["Resolve app name from package"]
 ResolveApp --> CheckFlag{"Capture enabled?"}
 CheckFlag --> |No| Skip["Skip capture and log"]
-CheckFlag --> |Yes| BuildItem["Build NotificationItem"]
+CheckFlag --> |Yes| AcquireLock["Acquire mutex lock"]
+AcquireLock --> CheckDuplicate{"Duplicate detected?"}
+CheckDuplicate --> |Yes| BumpCount["Bump updateCount + 1"]
+CheckDuplicate --> |No| BuildItem["Build NotificationItem"]
+BumpCount --> Broadcast["Broadcast 'NOTIFICATIONS_UPDATED'"]
 BuildItem --> Persist["Persist via Repository.insert"]
-Persist --> Broadcast["Broadcast 'NOTIFICATIONS_UPDATED'"]
-Skip --> End(["Exit"])
-Broadcast --> End
+Persist --> Broadcast
+Broadcast --> ReleaseLock["Release mutex lock"]
+ReleaseLock --> End(["Exit"])
+Skip --> End
 ```
 
 **Diagram sources**
-- [NotificationListener.kt:109-153](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L109-L153)
+- [NotificationListener.kt:121-190](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L121-L190)
 
 **Section sources**
-- [NotificationListener.kt:114-137](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L114-L137)
+- [NotificationListener.kt:121-190](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L121-L190)
 
-### Database Insertion Workflow
-- Repository delegates DAO insert.
+### Enhanced Database Insertion Workflow
+- Repository delegates DAO insert with duplicate prevention.
 - DAO uses REPLACE conflict strategy to handle duplicates.
+- **New bumpUpdateCount method**: Atomically increments updateCount and updates lastUpdated timestamp.
+- **Latest key lookup**: Retrieves most recent notification by key for duplicate detection.
 - MainViewModel loads notifications on UI thread after receiving broadcast.
 
 ```mermaid
@@ -254,9 +295,17 @@ participant DAO as "NotificationDao"
 participant DB as "NotificationDatabase"
 participant MA as "MainActivity"
 participant VM as "MainViewModel"
+NL->>Repo : "latestForKey(key)"
+Repo->>DAO : "SELECT latest by key"
+DAO-->>Repo : "Latest notification or null"
+alt Duplicate found
+NL->>Repo : "bumpUpdateCount(id, timestamp)"
+Repo->>DAO : "UPDATE SET updateCount + 1"
+else New notification
 NL->>Repo : "insert(NotificationItem)"
-Repo->>DAO : "insert(...)"
-DAO->>DB : "INSERT"
+Repo->>DAO : "INSERT"
+DAO->>DB : "persist"
+end
 NL->>MA : "Broadcast 'NOTIFICATIONS_UPDATED'"
 MA->>VM : "observe and reload"
 VM->>Repo : "loadNotifications(sorted)"
@@ -267,13 +316,13 @@ VM-->>MA : "LiveData updates"
 ```
 
 **Diagram sources**
-- [NotificationRepository.kt:16-18](file://app/src/main/java/com/notificationlog/repository/NotificationRepository.kt#L16-L18)
-- [NotificationDao.kt:18-19](file://app/src/main/java/com/notificationlog/data/NotificationDao.kt#L18-L19)
+- [NotificationRepository.kt:22-30](file://app/src/main/java/com/notificationlog/repository/NotificationRepository.kt#L22-L30)
+- [NotificationDao.kt:41-49](file://app/src/main/java/com/notificationlog/data/NotificationDao.kt#L41-L49)
 - [MainViewModel.kt:59-77](file://app/src/main/java/com/notificationlog/MainViewModel.kt#L59-L77)
 
 **Section sources**
-- [NotificationRepository.kt:16-18](file://app/src/main/java/com/notificationlog/repository/NotificationRepository.kt#L16-L18)
-- [NotificationDao.kt:18-19](file://app/src/main/java/com/notificationlog/data/NotificationDao.kt#L18-L19)
+- [NotificationRepository.kt:22-30](file://app/src/main/java/com/notificationlog/repository/NotificationRepository.kt#L22-L30)
+- [NotificationDao.kt:41-49](file://app/src/main/java/com/notificationlog/data/NotificationDao.kt#L41-L49)
 - [MainViewModel.kt:59-77](file://app/src/main/java/com/notificationlog/MainViewModel.kt#L59-L77)
 
 ### Broadcast Communication with MainActivity
@@ -362,11 +411,12 @@ MA["MainActivity<br/>Create channels"] --> AM
 - [MainActivity.kt:630-643](file://app/src/main/java/com/notificationlog/MainActivity.kt#L630-L643)
 
 ## Dependency Analysis
-- NotificationListener depends on:
+- **Enhanced NotificationListener** depends on:
   - Room database initialized lazily.
-  - NotificationRepository for persistence.
+  - NotificationRepository for persistence with duplicate prevention.
   - Android NotificationManager for warning notifications.
   - SharedPreferences for capture flag.
+  - **Mutex for thread-safe operations**.
 - MainActivity depends on:
   - MainViewModel for state and queries.
   - NotificationAdapter for UI rendering.
@@ -374,14 +424,15 @@ MA["MainActivity<br/>Create channels"] --> AM
 - MainViewModel depends on:
   - NotificationApp.repository for DAO operations.
   - Settings for service status checks.
-- NotificationRepository depends on:
+- **Enhanced NotificationRepository** depends on:
   - NotificationDatabase for DAO access.
+  - **New methods for duplicate handling and data compaction**.
 
 ```mermaid
 graph LR
-NL["NotificationListener"] --> REPO["NotificationRepository"]
-REPO --> DAO["NotificationDao"]
-DAO --> DB["NotificationDatabase"]
+NL["NotificationListener<br/>with mutex sync"] --> REPO["NotificationRepository<br/>with duplicate prevention"]
+REPO --> DAO["NotificationDao<br/>with bumpUpdateCount"]
+DAO --> DB["NotificationDatabase<br/>v2 schema"]
 MA["MainActivity"] --> VM["MainViewModel"]
 VM --> REPO
 MA --> AD["NotificationAdapter"]
@@ -389,25 +440,27 @@ MA --> NL
 ```
 
 **Diagram sources**
-- [NotificationListener.kt:27-34](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L27-L34)
-- [NotificationRepository.kt:6-27](file://app/src/main/java/com/notificationlog/repository/NotificationRepository.kt#L6-L27)
-- [NotificationDao.kt:6-26](file://app/src/main/java/com/notificationlog/data/NotificationDao.kt#L6-L26)
-- [NotificationDatabase.kt:7-10](file://app/src/main/java/com/notificationlog/data/NotificationDatabase.kt#L7-L10)
+- [NotificationListener.kt:27-37](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L27-L37)
+- [NotificationRepository.kt:6-92](file://app/src/main/java/com/notificationlog/repository/NotificationRepository.kt#L6-L92)
+- [NotificationDao.kt:6-68](file://app/src/main/java/com/notificationlog/data/NotificationDao.kt#L6-L68)
+- [NotificationDatabase.kt:7-43](file://app/src/main/java/com/notificationlog/data/NotificationDatabase.kt#L7-L43)
 - [MainActivity.kt:96](file://app/src/main/java/com/notificationlog/MainActivity.kt#L96)
 - [MainViewModel.kt:62](file://app/src/main/java/com/notificationlog/MainViewModel.kt#L62)
 - [NotificationAdapter.kt:13-59](file://app/src/main/java/com/notificationlog/adapter/NotificationAdapter.kt#L13-L59)
 
 **Section sources**
-- [NotificationListener.kt:27-34](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L27-L34)
-- [NotificationRepository.kt:6-27](file://app/src/main/java/com/notificationlog/repository/NotificationRepository.kt#L6-L27)
-- [NotificationDao.kt:6-26](file://app/src/main/java/com/notificationlog/data/NotificationDao.kt#L6-L26)
-- [NotificationDatabase.kt:7-10](file://app/src/main/java/com/notificationlog/data/NotificationDatabase.kt#L7-L10)
+- [NotificationListener.kt:27-37](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L27-L37)
+- [NotificationRepository.kt:6-92](file://app/src/main/java/com/notificationlog/repository/NotificationRepository.kt#L6-L92)
+- [NotificationDao.kt:6-68](file://app/src/main/java/com/notificationlog/data/NotificationDao.kt#L6-L68)
+- [NotificationDatabase.kt:7-43](file://app/src/main/java/com/notificationlog/data/NotificationDatabase.kt#L7-L43)
 - [MainActivity.kt:96](file://app/src/main/java/com/notificationlog/MainActivity.kt#L96)
 - [MainViewModel.kt:62](file://app/src/main/java/com/notificationlog/MainViewModel.kt#L62)
 - [NotificationAdapter.kt:13-59](file://app/src/main/java/com/notificationlog/adapter/NotificationAdapter.kt#L13-L59)
 
 ## Performance Considerations
+- **Enhanced thread safety**: Mutex-based synchronization prevents race conditions during concurrent notification processing.
 - Asynchronous processing: Repository insertions occur on Dispatchers.IO within a SupervisorJob-scoped CoroutineScope to prevent cancellation propagation and reduce overhead.
+- **Improved duplicate handling**: Instead of creating duplicate rows, the system now bumps updateCount for identical notifications, reducing database size and improving query performance.
 - UI responsiveness: MainViewModel loads notifications on IO and posts results to Main thread via withContext.
 - Memory management: RecyclerView uses DiffUtil to minimize UI churn; adapter binds efficiently with data binding.
 - Battery optimization:
@@ -415,8 +468,7 @@ MA --> NL
   - Use minimal logging and only when needed.
   - Cancel ongoing persistent notification when capture is disabled or not requested by user.
 - Storage efficiency: Room uses REPLACE on conflict to avoid duplicates; consider pruning older entries if the dataset grows large.
-
-[No sources needed since this section provides general guidance]
+- **New compactDuplicates method**: Provides efficient database cleanup for historical duplicate data.
 
 ## Troubleshooting Guide
 Common issues and resolutions:
@@ -436,12 +488,16 @@ Common issues and resolutions:
 - UI not updating:
   - Symptoms: New notifications not reflected.
   - Resolution: Ensure broadcast receivers are registered in onResume and unregistered in onPause; verify MainViewModel loads notifications after broadcast.
+- **Duplicate handling issues**:
+  - Symptom: Multiple entries for same notification appearing.
+  - Cause: Race conditions during concurrent processing or old data before v2 migration.
+  - Resolution: Use the compactDuplicates feature to clean up historical data; ensure mutex synchronization is working properly.
 
 **Section sources**
-- [NotificationListener.kt:44-65](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L44-L65)
-- [NotificationListener.kt:139-149](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L139-L149)
+- [NotificationListener.kt:46-77](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L46-L77)
+- [NotificationListener.kt:121-190](file://app/src/main/java/com/notificationlog/NotificationListener.kt#L121-L190)
 - [MainActivity.kt:51-66](file://app/src/main/java/com/notificationlog/MainActivity.kt#L51-L66)
 - [MainActivity.kt:313-322](file://app/src/main/java/com/notificationlog/MainActivity.kt#L313-L322)
 
 ## Conclusion
-The real-time notification capture feature integrates Android’s NotificationListenerService with Room persistence and a reactive UI. It provides robust background operation, user-controlled capture toggling, and clear feedback mechanisms for permission and service status. By leveraging coroutines and broadcasts, it balances responsiveness and reliability while offering straightforward troubleshooting pathways.
+The real-time notification capture feature integrates Android's NotificationListenerService with Room persistence and a reactive UI. The enhanced implementation provides robust background operation with mutex-based synchronization, user-controlled capture toggling, duplicate prevention mechanisms, and clear feedback mechanisms for permission and service status. By leveraging coroutines, broadcasts, and improved data integrity through updateCount tracking, it balances responsiveness and reliability while offering straightforward troubleshooting pathways and efficient duplicate handling.

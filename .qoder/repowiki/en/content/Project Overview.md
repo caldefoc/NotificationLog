@@ -2,6 +2,7 @@
 
 <cite>
 **Referenced Files in This Document**
+- [README.md](file://README.md)
 - [MainActivity.kt](file://app/src/main/java/com/notificationlog/MainActivity.kt)
 - [MainViewModel.kt](file://app/src/main/java/com/notificationlog/MainViewModel.kt)
 - [NotificationListener.kt](file://app/src/main/java/com/notificationlog/NotificationListener.kt)
@@ -12,9 +13,22 @@
 - [NotificationAdapter.kt](file://app/src/main/java/com/notificationlog/adapter/NotificationAdapter.kt)
 - [NotificationApp.kt](file://app/src/main/java/com/notificationlog/NotificationApp.kt)
 - [AndroidManifest.xml](file://app/src/main/AndroidManifest.xml)
-- [build.gradle](file://app/build.gradle)
-- [README-JDK-SETUP.md](file://README-JDK-SETUP.md)
+- [build.gradle](file://build.gradle)
+- [app/build.gradle](file://app/build.gradle)
+- [gradle.properties](file://gradle.properties)
+- [scripts/validate-jdk.gradle](file://scripts/validate-jdk.gradle)
+- [fastlane/metadata/android/en-US/full_description.txt](file://fastlane/metadata/android/en-US/full_description.txt)
+- [fastlane/metadata/android/en-US/short_description.txt](file://fastlane/metadata/android/en-US/short_description.txt)
+- [fastlane/metadata/android/en-US/title.txt](file://fastlane/metadata/android/en-US/title.txt)
 </cite>
+
+## Update Summary
+**Changes Made**
+- Updated build system specifications to reflect AGP 8.13.2, Gradle 8.14.3, and Kotlin 2.2.21
+- Added comprehensive privacy concerns documentation from README.md
+- Integrated F-Droid store metadata for app distribution information
+- Enhanced security and privacy sections with detailed permission explanations
+- Updated system requirements and JDK setup instructions
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -24,12 +38,14 @@
 5. [Detailed Component Analysis](#detailed-component-analysis)
 6. [Dependency Analysis](#dependency-analysis)
 7. [Performance Considerations](#performance-considerations)
-8. [Troubleshooting Guide](#troubleshooting-guide)
-9. [Conclusion](#conclusion)
-10. [Appendices](#appendices)
+8. [Privacy and Security](#privacy-and-security)
+9. [Build System and Requirements](#build-system-and-requirements)
+10. [Troubleshooting Guide](#troubleshooting-guide)
+11. [Conclusion](#conclusion)
+12. [Appendices](#appendices)
 
 ## Introduction
-NotificationLog is a real-time notification capture and management application for Android. It continuously monitors system notifications via Android’s NotificationListenerService, stores them locally using Room, and presents them in a searchable, sortable list. Users can export logs as text files, take screenshots of the current screen, and manage notification capture with on/off toggles and persistent status notifications. The app targets users who need insight into their notification stream, including power users, developers investigating notification behavior, and anyone interested in auditing notification activity.
+NotificationLog is a real-time notification capture and management application for Android that prioritizes user privacy and data security. It continuously monitors system notifications via Android's NotificationListenerService, stores them locally using Room database, and presents them in a searchable, sortable list. The application emphasizes privacy by design — it has no network permissions, no server component, and no data transmission capabilities. Users can export logs as text files, take screenshots of the current screen, and manage notification capture with on/off toggles and persistent status notifications. The app targets users who need insight into their notification stream while maintaining complete control over their sensitive data, including power users, developers investigating notification behavior, and anyone interested in auditing notification activity without compromising privacy.
 
 ## Project Structure
 The project follows a feature-based structure under the app module with clear separation of concerns:
@@ -102,6 +118,7 @@ Key features:
 - Screenshot capture of the current UI
 - Sorting by date or app
 - Toggle capture on/off and persistent status notification
+- Privacy-first design with no network access
 
 **Section sources**
 - [NotificationListener.kt](file://app/src/main/java/com/notificationlog/NotificationListener.kt)
@@ -335,11 +352,13 @@ Manifest --> NLSvc["NotificationListenerService"]
 ```
 
 **Diagram sources**
-- [build.gradle](file://app/build.gradle)
+- [build.gradle](file://build.gradle)
+- [app/build.gradle](file://app/build.gradle)
 - [AndroidManifest.xml](file://app/src/main/AndroidManifest.xml)
 
 **Section sources**
-- [build.gradle](file://app/build.gradle)
+- [build.gradle](file://build.gradle)
+- [app/build.gradle](file://app/build.gradle)
 - [AndroidManifest.xml](file://app/src/main/AndroidManifest.xml)
 
 ## Performance Considerations
@@ -349,44 +368,138 @@ Manifest --> NLSvc["NotificationListenerService"]
 - Export operations write to external storage asynchronously and provide user feedback.
 - Consider batching inserts if high-frequency bursts occur; current design inserts per notification.
 
+## Privacy and Security
+NotificationLog implements a privacy-first approach with multiple layers of protection:
+
+### Permission Model
+The application requires only two essential permissions:
+- **Notification access (`BIND_NOTIFICATION_LISTENER_SERVICE`)**: Required for the core functionality of reading system notifications
+- **`POST_NOTIFICATIONS` (API 33+)**: Used exclusively for displaying the app's own status and warning notifications
+
+### Network Isolation
+- **No network permissions**: The manifest deliberately excludes `INTERNET` and `ACCESS_NETWORK_STATE` permissions
+- **No network code paths**: The application contains no networking capabilities, making it impossible to transmit data externally
+- **Local-only storage**: All notification data remains in the local SQLite database
+
+### Data Protection
+- **Local SQLite storage**: Notification data is stored in a private SQLite database file
+- **Backup disabled**: `allowBackup="false"` prevents system backup services from copying data
+- **Data extraction rules**: Custom rules exclude both cloud backup and device transfer
+- **No encryption at rest**: While data stays local, it's readable by root or anyone with access to app-private storage
+
+### Privacy Implications
+Users should be aware that:
+- Notification bodies are captured verbatim, potentially containing sensitive information like OTP codes or private messages
+- The database file is readable by root users or anyone with access to the device's unlocked storage
+- There is no filtering mechanism for sensitive notification content
+- No encryption is applied to stored data
+
+**Section sources**
+- [README.md:29-41](file://README.md#L29-L41)
+- [fastlane/metadata/android/en-US/full_description.txt:3-16](file://fastlane/metadata/android/en-US/full_description.txt#L3-L16)
+
+## Build System and Requirements
+The project uses modern Android development tools with strict version requirements:
+
+### Build Configuration
+- **Android Gradle Plugin (AGP)**: 8.13.2
+- **Gradle**: 8.14.3
+- **Kotlin**: 2.2.21
+- **KSP**: 2.2.21-2.0.5
+- **JDK**: 21 (required for compilation)
+
+### SDK Requirements
+- **Minimum SDK**: 24 (Android 7.0)
+- **Target SDK**: 36 (Android 14)
+- **Compile SDK**: 36 (Android 14)
+
+### Development Setup
+- **JDK 21**: Required for building the project
+- **Gradle properties**: Configured with parallel builds and caching enabled
+- **Validation script**: Automated JDK version checking prevents build failures
+
+### Release Process
+- **Keystore configuration**: Requires `keystore.properties` file (gitignored for security)
+- **Signing**: Release builds require proper keystore configuration
+- **ProGuard**: Enabled for release builds with custom rules
+
+**Section sources**
+- [build.gradle:1-7](file://build.gradle#L1-L7)
+- [app/build.gradle:1-94](file://app/build.gradle#L1-L94)
+- [gradle.properties:1-38](file://gradle.properties#L1-L38)
+- [scripts/validate-jdk.gradle:1-94](file://scripts/validate-jdk.gradle#L1-L94)
+- [README.md:42-70](file://README.md#L42-L70)
+
 ## Troubleshooting Guide
 Common issues and resolutions:
-- Notification access disabled: The app detects disabled access and prompts to enable it. Open Settings → Apps → Notification Access and enable the app.
-- Permission denied for POST_NOTIFICATIONS (Android 13+): Grant the permission when prompted; the app checks and requests it at runtime.
-- Listener disconnected: On disconnection, a high-priority warning notification appears and a broadcast informs the UI to show a dialog. Re-enable notification access.
-- Export failures: Ensure storage permissions are granted; on Android Q+, the app uses MediaStore; on older versions, it writes to public documents directory.
-- Persistent notification visibility: Toggle “Show running notification” in the menu to display or hide the ongoing status notification.
+- **Notification access disabled**: The app detects disabled access and prompts to enable it. Open Settings → Apps → Notification Access and enable the app.
+- **Permission denied for POST_NOTIFICATIONS (Android 13+)**: Grant the permission when prompted; the app checks and requests it at runtime.
+- **Listener disconnected**: On disconnection, a high-priority warning notification appears and a broadcast informs the UI to show a dialog. Re-enable notification access.
+- **Export failures**: Ensure storage permissions are granted; on Android Q+, the app uses MediaStore; on older versions, it writes to public documents directory.
+- **Persistent notification visibility**: Toggle "Show running notification" in the menu to display or hide the ongoing status notification.
+- **JDK version errors**: Use `./gradlew validateJdk` to check JDK version; ensure JDK 21 is installed and configured in gradle.properties.
+- **Build failures**: Verify keystore.properties exists for release builds; debug builds work without signing configuration.
 
 **Section sources**
 - [MainActivity.kt](file://app/src/main/java/com/notificationlog/MainActivity.kt)
 - [NotificationListener.kt](file://app/src/main/java/com/notificationlog/NotificationListener.kt)
+- [scripts/validate-jdk.gradle:23-56](file://scripts/validate-jdk.gradle#L23-L56)
 
 ## Conclusion
-NotificationLog provides a robust, real-time notification capture and management solution built on modern Android technologies. Its MVVM architecture cleanly separates UI, presentation, domain, and data layers, while NotificationListenerService ensures reliable background capture. Room-backed local storage enables efficient querying and export capabilities. The app is suitable for both beginners seeking a straightforward notification viewer and advanced users needing auditability and export options.
+NotificationLog provides a robust, privacy-focused, real-time notification capture and management solution built on modern Android technologies. Its MVVM architecture cleanly separates UI, presentation, domain, and data layers, while NotificationListenerService ensures reliable background capture. Room-backed local storage enables efficient querying and export capabilities. The application's commitment to privacy — through minimal permissions, no network access, and local-only storage — makes it suitable for both beginners seeking a straightforward notification viewer and advanced users needing auditability and export options while maintaining complete control over their sensitive data.
 
 ## Appendices
 
 ### System Requirements and Supported Versions
-- Minimum Android version: Android 7.0 (API 24)
-- Target and compile SDK: Android 14 (API 34)
-- JDK: Version 21 (required for building)
-- Permissions:
+- **Minimum Android version**: Android 7.0 (API 24)
+- **Target and compile SDK**: Android 14 (API 36)
+- **JDK**: Version 21 (required for building)
+- **Build tools**: AGP 8.13.2, Gradle 8.14.3, Kotlin 2.2.21
+- **Permissions**:
   - POST_NOTIFICATIONS (Android 13+)
-  - INTERNET and ACCESS_NETWORK_STATE
-- Additional requirement: Notification access must be granted to the app
+  - Notification access (system setting)
+- **Additional requirement**: Notification access must be granted to the app
 
 **Section sources**
-- [build.gradle](file://app/build.gradle)
-- [AndroidManifest.xml](file://app/src/main/AndroidManifest.xml)
-- [README-JDK-SETUP.md](file://README-JDK-SETUP.md)
+- [build.gradle:1-7](file://build.gradle#L1-L7)
+- [app/build.gradle:21-40](file://app/build.gradle#L21-L40)
+- [README.md:23-27](file://README.md#L23-L27)
 
 ### Installation Prerequisites
 - Install JDK 21 and configure gradle.properties accordingly
 - Grant notification access to the app in system settings
 - On Android 13+, grant POST_NOTIFICATIONS permission when prompted
 - Launch the app; it will guide you to enable notification access if not yet granted
+- For release builds, create keystore.properties with signing configuration
 
 **Section sources**
-- [README-JDK-SETUP.md](file://README-JDK-SETUP.md)
+- [README.md:42-70](file://README.md#L42-L70)
+- [gradle.properties:8-14](file://gradle.properties#L8-L14)
 - [MainActivity.kt](file://app/src/main/java/com/notificationlog/MainActivity.kt)
-- [AndroidManifest.xml](file://app/src/main/AndroidManifest.xml)
+
+### F-Droid Store Information
+The application is optimized for F-Droid distribution with comprehensive metadata:
+
+#### Store Metadata
+- **Title**: Notification Log
+- **Short Description**: Searchable history of every notification, even ones you swipe away
+- **Full Description**: Comprehensive description emphasizing privacy and offline functionality
+
+#### Version History
+- **Version 1.0**: Initial release with core notification capture and management features
+- **Version 1.1**: Fixed app name resolution for package visibility compliance
+- **Version 1.2**: Improved connection status reporting and automatic recovery mechanisms
+
+#### Distribution Features
+- **Offline-first**: Works completely without internet connectivity
+- **Privacy-focused**: No analytics, ads, or network communication
+- **Open source**: Published under GNU General Public License v3.0
+- **Source availability**: Complete source code available on GitHub
+
+**Section sources**
+- [fastlane/metadata/android/en-US/title.txt:1-2](file://fastlane/metadata/android/en-US/title.txt#L1-L2)
+- [fastlane/metadata/android/en-US/short_description.txt:1-2](file://fastlane/metadata/android/en-US/short_description.txt#L1-L2)
+- [fastlane/metadata/android/en-US/full_description.txt:1-21](file://fastlane/metadata/android/en-US/full_description.txt#L1-L21)
+- [fastlane/metadata/android/en-US/changelogs/1.txt:1-6](file://fastlane/metadata/android/en-US/changelogs/1.txt#L1-L6)
+- [fastlane/metadata/android/en-US/changelogs/2.txt:1-6](file://fastlane/metadata/android/en-US/changelogs/2.txt#L1-L6)
+- [fastlane/metadata/android/en-US/changelogs/3.txt:1-8](file://fastlane/metadata/android/en-US/changelogs/3.txt#L1-L8)
