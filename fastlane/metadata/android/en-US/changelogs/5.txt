@@ -1,0 +1,5 @@
+﻿This release makes the build reproducible: two builds of the same source now produce byte-identical APKs.
+
+The Android build plugin was embedding a dependency block into every APK that changed from one build to the next even when nothing else did, which is exactly what breaks reproducible builds. Turning it off removes that variation.
+
+Nothing in the app changed. Notification history, settings and behaviour are untouched. The version number moves to 1.4 so this build can be offered as an update.
